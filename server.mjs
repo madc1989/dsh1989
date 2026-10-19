@@ -219,11 +219,16 @@ const fmt = (rec) => {
   }
   return `${rec.kind === 'user' ? '你' : rec.from}：${stripPrefix(rec.text)}${att}`;
 };
-function recentTurns(roomId, budgetOverride) {
+// upTo：只取 log 下标 < upTo 的记录。独立模式用它把「本轮此前成员的发言」挡在上下文外。
+function recentTurns(roomId, budgetOverride, upTo) {
   const budget = budgetOverride || histFor(roomId);
   const out = []; let size = 0;
-  for (let i = log.length - 1; i >= 0; i--) {
+  const top = Math.min(log.length, upTo ?? log.length);
+  for (let i = top - 1; i >= 0; i--) {
     if (log[i].room !== roomId) continue;
+    if (log[i].meta?.noHist) continue;                  // 只给界面看的记录（如独立模式提示），不进上下文
+    // 兼容旧记录：meta 里还没有 noHist 的那些「独立模式」提示，同样挡在上下文外（它们会被当成 assistant 发言接着往下写）
+    if (log[i].kind === 'system' && String(log[i].text || '').startsWith('（独立模式')) continue;
     const s = fmt(log[i]); if (size + s.length > budget) break;
     out.unshift({ role: log[i].kind === 'user' ? 'user' : 'assistant', content: s });
     size += s.length;
@@ -235,14 +240,20 @@ function systemPrompt(member, room, extra = '') {
   const persona = roomPersona
     ? `\n本会话对你的设定：${roomPersona}。这是你在这个群里的固定身份，每一轮都要按它说话、按它判断。`
     : member.persona ? `\n你的当前设定：${member.persona}。始终以此设定发言。` : '';
-  const modeLine = roomSettings[room.id]?.mode === 'persona'
+  const roomMode = roomSettings[room.id]?.mode;
+  const modeLine = roomMode === 'persona'
     ? '\n本会话处于「设定模式」：每个成员都有明确分工，按你的设定发言，不要抢别人的活，也不要泛泛附和。'
-    : '';
+    : roomMode === 'isolated'
+      ? '\n本会话处于「独立模式」：**历史是共享的**——前几轮谁说过什么你都能看到，跨轮的信息照常引用；但**本轮**其他成员也在同时回答，你看不到他们此刻的答案。所以：本轮不要揣测别人说了什么，也不要为了配合别人而含糊其辞，按你自己的判断直接作答（别把「本轮看不到」理解成「连历史也看不到」）。'
+      : roomMode === 'flow'
+        ? '\n本会话处于「自由模式」：一群人在闲聊，谁开口是随机决定的、不一定轮到你，也不是每个人都必须说。**像发微信那样说话：一两句，别写小作文，别给自己加"先分析再总结"的结构。** 可以接任何人的话，也可以换话题、翻旧账、只说半句、表示不同意；没什么想补的就回「沉默」。不要每句都追着上一句打补丁，真人聊天是会跳的。'
+        : '';
   const peers = room.kind === 'group' ? `当前群「${room.name}」里的成员：${room.members.map(m => m.name).join('、')}。` : '';
   return `你是多模型讨论室「圆桌」的成员「${member.name}」（底层模型 ${member.provider}/${member.model}）。${persona}${modeLine}
 ${peers}你在一${room.kind === 'group' ? '个群聊' : '对一私聊'}里，可以有其他 AI 成员和你观点不同；可以赞同、反驳、补充任何成员，自然提及对方名字。
 发言要简洁、口语化（一般不超过 200 字），不要 Markdown 标题和列表。
 历史里用「名字：内容」标记谁说了什么，那是记录格式，不是你的发言格式。
+历史里以〔系统记录〕开头的是系统提示（建群、模式说明、调整顺序之类），那**不是你自己的发言**，不要复述它、也不要接着它往下写。
 **重要：回复时直接说内容，绝对不要在开头写自己的名字、也不要用【】或“名字：”起头。**${extra}`;
 }
 function maybeRecall(text, roomId) {
@@ -318,11 +329,17 @@ async function refreshNet() {
 // 每个会话一条独立队列 + 一个中断开关（用户发「停」时立刻掐断正在飞的请求）
 const roomChains = new Map();
 const roomCtl = new Map();
-const ctlOf = (roomId) => roomCtl.get(roomId) ?? roomCtl.set(roomId, { cancel: false, ac: null }).get(roomId);
-const cancelRoom = (roomId) => { const c = ctlOf(roomId); c.cancel = true; try { c.ac?.abort(); } catch {} };
+const ctlOf = (roomId) => roomCtl.get(roomId) ?? roomCtl.set(roomId, { cancel: false, acs: new Set(), jobs: 0 }).get(roomId);
+// acs 是集合而非单个：独立模式下多个成员并发在飞，「停」要能一次全掐断。
+const cancelRoom = (roomId, reason = 'stop') => { const c = ctlOf(roomId); c.cancel = true; c.reason = reason; for (const a of [...c.acs]) { try { a.abort(); } catch {} } };
+// jobs 计数 = 这个会话队列里还有几件活在跑。用户中途发新消息时用它判断「上一轮还没说完」。
 function enqueue(roomId, fn) {
+  const c = ctlOf(roomId);
+  c.jobs++;
   const prev = roomChains.get(roomId) ?? Promise.resolve();
-  const next = prev.then(fn).catch(e => console.error('[queue]', roomId, e));
+  const next = prev.then(fn)
+    .catch(e => console.error('[queue]', roomId, e))
+    .finally(() => { c.jobs = Math.max(0, c.jobs - 1); });
   roomChains.set(roomId, next);
   return next;
 }
@@ -335,24 +352,27 @@ function localLock(fn) {
 }
 
 // ---------- 发言 ----------
-async function speak(member, room, extra, tag) {
+async function speak(member, room, extra, tag, histUpTo) {
   const st = stateOf(member.id);
   st.speaking = true; emitStatus(member);
   const rec = { id: 'm' + Date.now() + Math.random().toString(36).slice(2, 6), ts: Date.now(), room: room.id, kind: 'member', from: member.name, text: '', meta: tag };
   // ⚠️ 必须先算历史再写占位记录：否则本轮的空 assistant 记录会被当成"我已经开口了"喂给模型，
   //    小模型（本机 8B）会顺着它复读自己上一条 —— 2026-10-18 实测踩过。
   const budget = member.provider === LOCAL_PROVIDER ? Math.min(histFor(room.id), 3500) : undefined;
-  const turnNote = member.provider === LOCAL_PROVIDER
-    ? '(现在轮到你发言。直接回答上面最后一条消息，不要重复你说过的话。)/no_think'
-    : '(现在轮到你发言。直接回答上面最后一条消息的内容，不要重复你之前说过的话，也不要复述位置信息。)';
+  // tag.turnNote 允许调用方改写这句话。自由模式必须改：默认那句「直接回答上面最后一条消息」= 明令接龙，
+  // 会把自由模式逼成接力赛（每人都追着上一句打补丁）—— 2026-10-19 用户实测反馈。
+  const rawNote = tag?.turnNote || (member.provider === LOCAL_PROVIDER
+    ? '(现在轮到你发言。直接回答上面最后一条消息，不要重复你说过的话。)'
+    : '(现在轮到你发言。直接回答上面最后一条消息的内容，不要重复你之前说过的话，也不要复述位置信息。)');
+  const turnNote = member.provider === LOCAL_PROVIDER && !rawNote.includes('/no_think') ? rawNote + '/no_think' : rawNote;
   const system = systemPrompt(member, room, extra);
-  const turns = [...recentTurns(room.id, budget), { role: 'user', content: turnNote }];
+  const turns = [...recentTurns(room.id, budget, histUpTo), { role: 'user', content: turnNote }];
   appendLog(rec);                                          // 只落盘，不广播（避免前端画出空气泡）
   broadcast({ type: 'start', id: rec.id, from: member.name, room: room.id });
   let ok = true, aborted = false, pending = '', released = false;
   const ctl = ctlOf(room.id);
   const ac = new AbortController();
-  ctl.ac = ac;
+  ctl.acs.add(ac);
   const signal = AbortSignal.any ? AbortSignal.any([AbortSignal.timeout(180_000), ac.signal]) : ac.signal;
   const release = (chunk) => {
     if (released) { broadcast({ type: 'delta', id: rec.id, text: chunk }); return; }
@@ -371,18 +391,25 @@ async function speak(member, room, extra, tag) {
     if (e?.name === 'AbortError' && ctl.cancel) {
       aborted = true;
       const partial = rec.text.trim();
-      rec.text = (partial ? partial + '\n' : '') + '（已按你的要求中断）';
+      rec.text = (partial ? partial + '\n' : '') + (ctl.reason === 'newmsg' ? '（你发了新消息，这条被打断）' : '（已按你的要求中断）');
     } else {
       rec.text += `（${member.name} 发言失败：${e.message}）`;
     }
     broadcast({ type: 'delta', id: rec.id, text: rec.text });
   } finally {
-    if (ctl.ac === ac) ctl.ac = null;
+    ctl.acs.delete(ac);
   }
   if (ok) {
     if (!released) { const clean = stripPrefix(pending); if (clean) broadcast({ type: 'delta', id: rec.id, text: clean }); }
     rec.text = stripPrefix(rec.text);
     if (!rec.text.trim()) { ok = false; rec.text = `（${member.name} 返回了空内容，已记为失败）`; broadcast({ type: 'delta', id: rec.id, text: rec.text }); }
+    // 自由模式的「不接话」：模型回 沉默 就留一条痕迹（不显示那句废话，也不当失败）
+    else if (/^[\s（(\[【「]*沉\s*默[\s）)\]】」。.!！]*$/.test(rec.text.trim())) {
+      rec.text = `（${member.name} 没接话）`;
+      // noHist：别让「（X 没接话）」进上下文 —— 小模型会照着它继续回沉默，连着四拍全哑（实测踩到）
+      rec.meta = { ...(rec.meta || {}), silent: true, noHist: true };
+      broadcast({ type: 'delta', id: rec.id, text: '（没接话）' });
+    }
   }
   flushLog();
   broadcast({ type: 'end', id: rec.id, room: room.id, rec });
@@ -410,6 +437,33 @@ function parseDebate(text, list) {
   const found = list.filter(mb => text.includes(mb.name));
   return found.length >= 2 ? found.slice(0, 3) : null;
 }
+// ---------- 自由模式：一拍只让一个人说，谁开口按「发言倾向」加权随机 ----------
+// 仿 SillyTavern 的 Natural Order：先认点名，再按倾向掷骰，都不中兜底随机（保证不会没人说）。
+// fromUser=true 时点名是硬优先（你点谁谁接）；false（模型之间互称）只加权×2，不直接胜出 ——
+// 否则两个模型互相喊名字就会锁成二人乒乓，第三个人永远插不进来（2026-10-19 实测踩到）。
+function pickSpeaker(room, seedText, prevId, fromUser, exclude) {
+  const avail = room.members.filter(mb => mb && !offlineFor(mb) && !noteDown(mb) && !(exclude && exclude.has(mb.id)));
+  if (!avail.length) return null;
+  const s = String(seedText || '').toLowerCase();
+  const isNamed = (mb) => !!s && s.includes(String(mb.name).toLowerCase());
+  if (fromUser && s) {                              // ① 你点名的，硬优先（不点自己）
+    const named = avail.find(mb => mb.id !== prevId && isNamed(mb));
+    if (named) return named;
+  }
+  const w = roomSettings[room.id]?.talkativeness || {};
+  const willing = avail.filter(mb => Number(w[mb.id] ?? 50) > 0);   // ② 倾向 0 = 不主动开口（被点名仍会说）
+  const pool = willing.length ? willing : avail;                    // ③ 全员 0 时兜底
+  const weightOf = (mb) => {
+    let base = willing.length ? Math.max(1, Number(w[mb.id] ?? 50)) : 1;
+    if (mb.id === prevId) base *= 0.5;              // 刚说过的人权重减半：允许连说，但不让他独霸
+    else if (!fromUser && isNamed(mb)) base *= 2;   // 模型互称：加权但不必中，避免二人乒乓
+    return base;
+  };
+  const total = pool.reduce((s, mb) => s + weightOf(mb), 0);
+  let r = Math.random() * total;
+  for (const mb of pool) { r -= weightOf(mb); if (r <= 0) return mb; }
+  return pool[pool.length - 1];
+}
 async function runDebate(room) {
   const d = debates.get(room.id);
   const maxR = roundsFor(room.id);
@@ -435,6 +489,7 @@ function handleUser(roomId, text, attach) {
   const room = roomInfo(roomId);
   if (!room) return;
   addRec({ id: 'u' + Date.now(), ts: Date.now(), room: roomId, kind: 'user', from: '你', text, meta: {}, ...(attach ? { attach } : {}) });
+  const histUpTo = log.length;                         // 本轮基线：独立模式下成员的历史切到这里为止
   if (!text) { /* 只有附件时不做人设/检索解析 */ }
   const personaNote = maybeSetPersona(text);
   if (personaNote) addRec({ id: 's' + Date.now(), ts: Date.now(), room: roomId, kind: 'system', from: 'system', text: personaNote, meta: {} });
@@ -445,8 +500,15 @@ function handleUser(roomId, text, attach) {
     addRec({ id: 's' + Date.now(), ts: Date.now(), room: roomId, kind: 'system', from: 'system', text: hadDebate ? '（专题讨论已停止）' : '（已停止本会话的后续发言）', meta: {} });
     return;
   }
-  ctlOf(roomId).cancel = false;                        // 新消息到达 → 复位中断开关
+  // 上一轮还没说完就又发了一条：先掐掉它，别让你的新话排在一堆旧发言后面干等。
+  // （以前只有说「停」才中断，导致正生成的那条会一直说下去 —— 2026-10-19 用户报的）
+  const rc = ctlOf(roomId);
+  if (rc.jobs > 0 || rc.acs.size > 0) {
+    cancelRoom(roomId, 'newmsg');                      // 互搏/多拍循环会自己看到 cancel 并收尾
+    addRec({ id: 's' + Date.now() + 'int', ts: Date.now(), room: roomId, kind: 'system', from: 'system', text: '（你发了新消息，上一轮被打断）', meta: { noHist: true } });
+  }
   enqueue(roomId, async () => {
+    ctlOf(roomId).cancel = false;                      // 复位中断开关（必须等轮到这条时才复位）
     await refreshNet();
     const recall = maybeRecall(text, roomId);
     if (room.kind === 'dm') {
@@ -463,6 +525,31 @@ function handleUser(roomId, text, attach) {
       addRec({ id: 's' + Date.now(), ts: Date.now(), room: roomId, kind: 'system', from: 'system', text: `（${debaters.map(d2 => d2.name).join(' ↔ ')} 专题讨论开始，最多 ${roundsFor(roomId)} 轮）`, meta: {} });
       return runDebate(room);
     }
+    // 自由模式：不排班。一拍选一个发言人，说完把话头交出去，最多 autoBeats 拍。
+    if (roomSettings[roomId]?.mode === 'flow') {
+      await new Promise(r => setTimeout(r, 400));
+      const beats = Math.max(1, Math.min(10, Number(roomSettings[roomId]?.autoBeats) || 3));
+      if (room.members.length > 1) addRec({ id: 's' + Date.now() + 'flow', ts: Date.now(), room: roomId, kind: 'system', from: 'system', text: `（自由模式：本轮最多 ${beats} 拍，谁开口看发言倾向，被点名的优先）`, meta: { noHist: true } });
+      // 这句不能写成「接着上一句说」：那样每个人都会追着前一句打补丁，变成接力赛（用户实测反馈）
+      const FLOW_TURN = '（轮到你在这个群里说句话。像发微信那样：一两句，别写小作文。可以接任何人的话，也可以换话题、翻旧账、只说半句；实在没什么想补的，就只回「沉默」两个字。）';
+      let carry = text || '';                            // 上一句话，用来认「有人在点谁的名字」
+      let lastId = null;
+      const quiet = new Set();                           // 本轮已经表示"没话说"的人，别在同一轮反复点他
+      for (let b = 0; b < beats; b++) {
+        if (ctlOf(roomId).cancel) break;
+        const mb = pickSpeaker(room, carry, lastId, b === 0, quiet);   // 只有第一拍是「你」在点名
+        if (!mb) break;
+        const called = !!carry && carry.toLowerCase().includes(String(mb.name).toLowerCase());
+        const extra = recall + (called ? '\n（上一条消息里喊了你的名字。）' : '');
+        const rec = await speak(mb, room, extra, { mode: 'flow', beat: b + 1, total: beats, turnNote: FLOW_TURN });
+        if (rec?.meta?.silent) { quiet.add(mb.id); }       // 没接话：本轮不再点他，话头留在上一句
+        else if (rec?.text) carry = rec.text;
+        lastId = mb.id;
+        if (b < beats - 1) await new Promise(r => setTimeout(r, 500));
+      }
+      return;
+    }
+
     const target = parseMention(text, room.members);
     if (target) {
       if (offlineFor(target)) return skipNote(room, target, true);
@@ -472,7 +559,26 @@ function handleUser(roomId, text, attach) {
     const off = room.members.filter(offlineFor);
     if (off.length) addRec({ id: 's' + Date.now(), ts: Date.now(), room: roomId, kind: 'system', from: 'system', text: `（网络离线：${off.map(m => m.name).join('、')} 已跳过，仅本机 8B 可达）`, meta: {} });
     const names = room.members.map(m => m.name);
+    const iso = roomSettings[roomId]?.mode === 'isolated';
     await new Promise(r => setTimeout(r, 400));           // 首棒前留个空档，等你的消息先落定
+
+    if (iso) {
+      // 独立模式：全员同时作答；每个人的历史都截到「用户这条消息」，互相看不到本轮答案。
+      // 不传顺序提示（"上一位是谁、接着他说"），否则等于变相要求附和。
+      const list = [];
+      for (const mb of room.members) {
+        if (offlineFor(mb)) { skipNote(room, mb, true); continue; }
+        if (noteDown(mb)) { skipNote(room, mb); continue; }
+        list.push(mb);
+      }
+      if (ctlOf(roomId).cancel) return;
+      if (room.members.length > 1) addRec({ id: 's' + Date.now() + 'iso', ts: Date.now(), room: roomId, kind: 'system', from: 'system', text: '（独立模式：各成员同时作答，互相看不到对方的答案）', meta: { noHist: true } });
+      const note = list.length > 1 ? '\n（本轮为独立作答：其他成员也在回答同一个问题，你看不到他们的答案。按自己的判断直接作答，不必与他们保持一致。）' : '';
+      const total = list.length;
+      await Promise.all(list.map((mb, i) => speak(mb, room, `${recall}${note}`, { mode: 'isolated', pos: i + 1, total }, histUpTo)));
+      return;
+    }
+
     for (let i = 0; i < room.members.length; i++) {
       const mb = room.members[i];
       if (ctlOf(roomId).cancel) break;                 // 用户喊停：后面的成员不再发言
@@ -496,7 +602,7 @@ const server = http.createServer((req, res) => {
   const u = new URL(req.url, 'http://x');
   if (u.pathname === '/' && req.method === 'GET') { res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }); return res.end(HTML); }
   if (u.pathname === '/api/state' && req.method === 'GET') {
-    return json(res, { members, rooms, maxRounds: MAX_ROUNDS, states: mstate, netOnline, settings: roomSettings, histDefault: HIST_CHARS, appTitle: roomSettings._app?.title || '圆桌' });
+    return json(res, { members, rooms, maxRounds: MAX_ROUNDS, states: mstate, netOnline, settings: roomSettings, histDefault: HIST_CHARS, appTitle: roomSettings._app?.title || '圆桌', theme: roomSettings._app?.theme || null });
   }
   if (u.pathname === '/api/messages' && req.method === 'GET') {
     const room = u.searchParams.get('room') || 'free';
@@ -634,6 +740,27 @@ const server = http.createServer((req, res) => {
     });
     return;
   }
+  if (u.pathname === '/api/app-theme' && req.method === 'POST') {   // 背景色 / 图案
+    let body = ''; req.on('data', c => body += c);
+    req.on('end', () => {
+      try {
+        const { theme } = JSON.parse(body);
+        const t = theme || {};
+        const clean = {
+          dark: t.dark !== false,
+          gradient: !!t.gradient,
+          color: /^#[0-9a-fA-F]{6}$/.test(String(t.color || '')) ? t.color : '#f3f4f6',
+          pattern: ['none', 'dots', 'grid', 'diag'].includes(t.pattern) ? t.pattern : 'none',
+          image: /^\/uploads\/[\w.\-%]+$/.test(String(t.image || '')) ? t.image : '',
+        };
+        roomSettings._app = { ...(roomSettings._app || {}), theme: clean };
+        saveSettings();
+        broadcast({ type: 'theme', theme: clean });
+        json(res, { ok: true, theme: clean });
+      } catch (e) { json(res, { ok: false, error: e.message }); }
+    });
+    return;
+  }
   if (u.pathname === '/api/app-title' && req.method === 'POST') {   // 左上角标题重命名
     let body = ''; req.on('data', c => body += c);
     req.on('end', () => {
@@ -653,7 +780,7 @@ const server = http.createServer((req, res) => {
     let body = ''; req.on('data', c => body += c);
     req.on('end', () => {
       try {
-        const { room, histChars, mode, personas, maxRounds } = JSON.parse(body);
+        const { room, histChars, mode, personas, maxRounds, autoBeats, talkativeness } = JSON.parse(body);
         if (!roomInfo(room)) return json(res, { ok: false, error: '会话不存在' });
         const cur = roomSettings[room] || {};
         const next = { ...cur };
@@ -663,8 +790,22 @@ const server = http.createServer((req, res) => {
           next.histChars = Math.round(v);
         }
         if (mode !== undefined) {
-          if (!['free', 'persona'].includes(mode)) return json(res, { ok: false, error: '模式不合法' });
+          if (!['free', 'persona', 'isolated', 'flow'].includes(mode)) return json(res, { ok: false, error: '模式不合法' });
           next.mode = mode;
+        }
+        if (autoBeats !== undefined) {
+          const v = Number(autoBeats);
+          if (!Number.isFinite(v) || v < 1 || v > 10) return json(res, { ok: false, error: '自动续拍需在 1 ~ 10 之间' });
+          next.autoBeats = Math.round(v);
+        }
+        if (talkativeness && typeof talkativeness === 'object') {
+          const clean = {};
+          for (const [id, val] of Object.entries(talkativeness)) {
+            if (!memberById(id)) continue;
+            const v = Number(val);
+            if (Number.isFinite(v)) clean[id] = Math.max(0, Math.min(100, Math.round(v)));
+          }
+          next.talkativeness = clean;
         }
         if (maxRounds !== undefined) {
           const r = Number(maxRounds);
