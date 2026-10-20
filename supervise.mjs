@@ -19,6 +19,7 @@ const LOG_DIR = path.join(ROOT, 'logs')
 const LOG = path.join(LOG_DIR, 'server.log')
 const NODE = process.execPath
 const PORT = process.env.RT_PORT || '3000'
+const HOST = process.env.RT_HOST || '0.0.0.0'   // 守护模式下默认开放局域网（手机访问）；只想本机就设 RT_HOST=127.0.0.1
 
 fs.mkdirSync(LOG_DIR, { recursive: true })
 
@@ -34,7 +35,7 @@ let stopping = false
 function start() {
   stamp('info', `starting ${SERVER} --port ${PORT}`)
   const out = fs.openSync(LOG, 'a')
-  child = spawn(NODE, [SERVER, '--port', PORT], {
+  child = spawn(NODE, [SERVER, '--port', PORT, '--host', HOST], {
     cwd: ROOT,
     stdio: ['ignore', out, out],
     windowsHide: true,
