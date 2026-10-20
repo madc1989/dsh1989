@@ -373,6 +373,9 @@ async function speak(member, room, extra, tag, histUpTo) {
   const ctl = ctlOf(room.id);
   const ac = new AbortController();
   ctl.acs.add(ac);
+  ctl.calls = (ctl.calls || 0) + 1;                          // 本轮的模型调用次数：界面上常驻显示
+  ctl.who = member.name; ctl.beat = tag?.beat ?? null; ctl.total = tag?.total ?? null;
+  broadcast({ type: 'round', room: room.id, calls: ctl.calls, paused: !!ctl.paused, who: ctl.who, beat: ctl.beat, total: ctl.total });
   const signal = AbortSignal.any ? AbortSignal.any([AbortSignal.timeout(180_000), ac.signal]) : ac.signal;
   const release = (chunk) => {
     if (released) { broadcast({ type: 'delta', id: rec.id, text: chunk }); return; }
@@ -416,6 +419,10 @@ async function speak(member, room, extra, tag, histUpTo) {
   if (ok) { st.fails = 0; st.down = false; }
   else if (!aborted) { st.fails++; st.lastFail = Date.now(); if (st.fails >= DOWN_AFTER) st.down = true; }   // 用户主动中断不算失败
   st.speaking = false; emitStatus(member);
+  if (ctl.who === member.name) {                             // 说完了：状态条切回"空闲"
+    ctl.who = null; ctl.beat = null; ctl.total = null;
+    broadcast({ type: 'round', room: room.id, calls: ctl.calls, paused: !!ctl.paused, who: null });
+  }
   return rec;
 }
 const skipNote = (room, mb, offline = false) => addRec({
@@ -425,6 +432,8 @@ const skipNote = (room, mb, offline = false) => addRec({
 });
 
 // ---------- 编排 ----------
+// 「在场」：roomSettings[room].present[id] === false 表示本轮把他放到席外（不出席、不说话）
+const isPresent = (roomId, id) => roomSettings[roomId]?.present?.[id] !== false;
 function parseMention(text, list) {
   const t = text.replace(/＠/g, '@');
   const at = t.indexOf('@');
@@ -442,7 +451,7 @@ function parseDebate(text, list) {
 // fromUser=true 时点名是硬优先（你点谁谁接）；false（模型之间互称）只加权×2，不直接胜出 ——
 // 否则两个模型互相喊名字就会锁成二人乒乓，第三个人永远插不进来（2026-10-19 实测踩到）。
 function pickSpeaker(room, seedText, prevId, fromUser, exclude) {
-  const avail = room.members.filter(mb => mb && !offlineFor(mb) && !noteDown(mb) && !(exclude && exclude.has(mb.id)));
+  const avail = room.members.filter(mb => mb && !offlineFor(mb) && !noteDown(mb) && !(exclude && exclude.has(mb.id)) && isPresent(room.id, mb.id));
   if (!avail.length) return null;
   const s = String(seedText || '').toLowerCase();
   const isNamed = (mb) => !!s && s.includes(String(mb.name).toLowerCase());
@@ -508,7 +517,10 @@ function handleUser(roomId, text, attach) {
     addRec({ id: 's' + Date.now() + 'int', ts: Date.now(), room: roomId, kind: 'system', from: 'system', text: '（你发了新消息，上一轮被打断）', meta: { noHist: true } });
   }
   enqueue(roomId, async () => {
-    ctlOf(roomId).cancel = false;                      // 复位中断开关（必须等轮到这条时才复位）
+    const ctl0 = ctlOf(roomId);
+    ctl0.cancel = false;                               // 复位中断开关（必须等轮到这条时才复位）
+    ctl0.calls = 0; ctl0.paused = false; ctl0.who = null; ctl0.beat = null; ctl0.total = null;   // 新一轮：计数归零、解除暂停
+    broadcast({ type: 'round', room: roomId, calls: 0, paused: false });
     await refreshNet();
     const recall = maybeRecall(text, roomId);
     if (room.kind === 'dm') {
@@ -536,6 +548,9 @@ function handleUser(roomId, text, attach) {
       let lastId = null;
       const quiet = new Set();                           // 本轮已经表示"没话说"的人，别在同一轮反复点他
       for (let b = 0; b < beats; b++) {
+        if (ctlOf(roomId).cancel) break;
+        // 暂停 = 挂住等恢复（不是结束这一轮）；期间「继续接话」能接着走，发新消息或结束会打断
+        while (ctlOf(roomId).paused && !ctlOf(roomId).cancel) { await new Promise(r => setTimeout(r, 300)); }
         if (ctlOf(roomId).cancel) break;
         const mb = pickSpeaker(room, carry, lastId, b === 0, quiet);   // 只有第一拍是「你」在点名
         if (!mb) break;
@@ -569,6 +584,7 @@ function handleUser(roomId, text, attach) {
       for (const mb of room.members) {
         if (offlineFor(mb)) { skipNote(room, mb, true); continue; }
         if (noteDown(mb)) { skipNote(room, mb); continue; }
+        if (!isPresent(roomId, mb.id)) continue;          // 席外的人不参与
         list.push(mb);
       }
       if (ctlOf(roomId).cancel) return;
@@ -582,8 +598,11 @@ function handleUser(roomId, text, attach) {
     for (let i = 0; i < room.members.length; i++) {
       const mb = room.members[i];
       if (ctlOf(roomId).cancel) break;                 // 用户喊停：后面的成员不再发言
+      while (ctlOf(roomId).paused && !ctlOf(roomId).cancel) { await new Promise(r => setTimeout(r, 300)); }
+      if (ctlOf(roomId).cancel) break;
       if (offlineFor(mb)) continue;
       if (noteDown(mb)) { skipNote(room, mb); continue; }
+      if (!isPresent(roomId, mb.id)) continue;         // 席外的人不说话
       // 位置提示：让成员知道本轮顺序、自己第几个、前面是谁（解决"不知道自己在哪就交出空白卷"）
       const where = room.members.length > 1
         ? `\n【本轮顺序】${names.join(' → ')}。你是第 ${i + 1}/${room.members.length} 位` +
@@ -780,7 +799,7 @@ const server = http.createServer((req, res) => {
     let body = ''; req.on('data', c => body += c);
     req.on('end', () => {
       try {
-        const { room, histChars, mode, personas, maxRounds, autoBeats, talkativeness } = JSON.parse(body);
+        const { room, histChars, mode, personas, maxRounds, autoBeats, talkativeness, present } = JSON.parse(body);
         if (!roomInfo(room)) return json(res, { ok: false, error: '会话不存在' });
         const cur = roomSettings[room] || {};
         const next = { ...cur };
@@ -807,6 +826,13 @@ const server = http.createServer((req, res) => {
           }
           next.talkativeness = clean;
         }
+        if (present && typeof present === 'object') {   // 在场：false = 本轮放到席外
+          const clean = {};
+          for (const [id, val] of Object.entries(present)) {
+            if (memberById(id)) clean[id] = val !== false;
+          }
+          next.present = clean;
+        }
         if (maxRounds !== undefined) {
           const r = Number(maxRounds);
           if (!Number.isFinite(r) || r < 1 || r > 50) return json(res, { ok: false, error: '最大轮数需在 1 ~ 50 之间' });
@@ -823,6 +849,35 @@ const server = http.createServer((req, res) => {
         roomSettings[room] = next;
         saveSettings();
         json(res, { ok: true, settings: next });
+      } catch (e) { json(res, { ok: false, error: e.message }); }
+    });
+    return;
+  }
+  // 暂停接话：当前这句说完就停起新的，但这一轮不作废（和「结束讨论」区分开）
+  if (u.pathname === '/api/room-pause' && req.method === 'POST') {
+    let body = ''; req.on('data', c => body += c);
+    req.on('end', () => {
+      try {
+        const { room, paused } = JSON.parse(body);
+        if (!roomInfo(room)) return json(res, { ok: false, error: '会话不存在' });
+        const c = ctlOf(room);
+        c.paused = !!paused;
+        broadcast({ type: 'round', room, calls: c.calls || 0, paused: c.paused });
+        json(res, { ok: true, paused: c.paused });
+      } catch (e) { json(res, { ok: false, error: e.message }); }
+    });
+    return;
+  }
+  // 结束讨论：掐断正在飞的、剩下的不再起（等于对当前会话喊「停」，但不往聊天里插一条消息）
+  if (u.pathname === '/api/room-stop' && req.method === 'POST') {
+    let body = ''; req.on('data', c => body += c);
+    req.on('end', () => {
+      try {
+        const { room } = JSON.parse(body);
+        if (!roomInfo(room)) return json(res, { ok: false, error: '会话不存在' });
+        cancelRoom(room, 'stop');
+        broadcast({ type: 'round', room, calls: ctlOf(room).calls || 0, paused: false });
+        json(res, { ok: true });
       } catch (e) { json(res, { ok: false, error: e.message }); }
     });
     return;
@@ -936,6 +991,36 @@ const server = http.createServer((req, res) => {
         broadcast({ type: 'members', members });
         broadcast({ type: 'rooms', rooms });
         json(res, { ok: true, removed: mb.name });
+      } catch (e) { json(res, { ok: false, error: e.message }); }
+    });
+    return;
+  }
+  // 个人资料：名字 / 头像表情 / 人设（全局）/ 线路+模型
+  if (u.pathname === '/api/members/update' && req.method === 'POST') {
+    let body = ''; req.on('data', c => body += c);
+    req.on('end', () => {
+      try {
+        const { id, name, emoji, persona, provider, model } = JSON.parse(body);
+        const mb = members.find(m => m.id === id);
+        if (!mb) return json(res, { ok: false, error: '成员不存在' });
+        if (name !== undefined) {
+          const nm = String(name).trim().slice(0, 20);
+          if (!nm) return json(res, { ok: false, error: '名字不能为空' });
+          mb.name = nm;
+        }
+        if (emoji !== undefined) mb.emoji = String(emoji).trim().slice(0, 4);
+        if (persona !== undefined) {
+          const p = String(persona).trim().slice(0, 300);
+          if (p) mb.persona = p; else delete mb.persona;
+        }
+        if (provider !== undefined && model !== undefined) {
+          const p = String(provider), mo = String(model);
+          if (!ROUTES[p]) return json(res, { ok: false, error: '线路不合法' });
+          mb.provider = p; mb.model = mo;
+        }
+        saveMembers();
+        broadcast({ type: 'members', members });
+        json(res, { ok: true, member: mb });
       } catch (e) { json(res, { ok: false, error: e.message }); }
     });
     return;

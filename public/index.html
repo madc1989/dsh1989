@@ -5,15 +5,15 @@
 <title>圆桌 · 多模型聊天</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: "Microsoft YaHei", system-ui, sans-serif; height: 100vh; display: flex; color: #1f2937; overflow: hidden;
+  body { font-family: "Microsoft YaHei", system-ui, sans-serif; height: 100vh; display: flex; color: var(--ink); overflow: hidden;
          background: linear-gradient(135deg, #dbeafe 0%, #ede9fe 35%, #fce7f3 65%, #fef3c7 100%); background-attachment: fixed; }
   /* 左侧栏：与右侧同一套半透明玻璃 */
-  #side { width: 230px; padding: 12px 8px 6px; flex-shrink: 0; position: relative; color: #1f2937; display: flex; flex-direction: column;
+  #side { width: 230px; padding: 12px 8px 6px; flex-shrink: 0; position: relative; color: var(--ink); display: flex; flex-direction: column;
           background: rgba(255,255,255,.52); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
           border-right: 1px solid rgba(255,255,255,.8); }
   #sideScroll { flex: 1; overflow-y: auto; min-height: 0; }
   #sideFoot { padding: 6px 2px 0; border-top: 1px solid rgba(255,255,255,.85); margin-top: 4px; }
-  #setBtn { width: 100%; text-align: left; padding: 8px 10px; border-radius: 8px; border: 0; background: transparent; color: #374151; cursor: pointer; font-size: 13px; }
+  #setBtn { width: 100%; text-align: left; padding: 8px 10px; border-radius: 8px; border: 0; background: transparent; color: var(--ink-2); cursor: pointer; font-size: 13px; }
   #setBtn:hover { background: rgba(255,255,255,.75); }
   #setMenu { display: none; position: absolute; left: 10px; bottom: 46px; z-index: 45; background: rgba(255,255,255,.95); backdrop-filter: blur(12px); border: 1px solid rgba(0,0,0,.08); border-radius: 10px; box-shadow: 0 10px 24px rgba(17,24,39,.18); padding: 5px; min-width: 140px; }
   #setMenu div { padding: 8px 10px; font-size: 13px; border-radius: 7px; cursor: pointer; }
@@ -21,47 +21,49 @@
   #sideHead { display: flex; align-items: center; justify-content: space-between; padding: 0 6px 6px; }
   #sideHead b { font-size: 15px; cursor: pointer; border-radius: 6px; padding: 2px 4px; }
   #sideHead b:hover { background: rgba(255,255,255,.8); }
-  #plusBtn { width: 26px; height: 26px; border-radius: 50%; border: 1px solid rgba(0,0,0,.12); background: rgba(255,255,255,.65); color: #374151; font-size: 16px; line-height: 1; cursor: pointer; }
+  #plusBtn { width: 26px; height: 26px; border-radius: 50%; border: 1px solid rgba(0,0,0,.12); background: rgba(255,255,255,.65); color: var(--ink-2); font-size: 16px; line-height: 1; cursor: pointer; }
   #plusBtn:hover { background: rgba(255,255,255,.95); }
   #plusMenu { display: none; position: absolute; right: 10px; top: 44px; z-index: 40; background: rgba(255,255,255,.92); backdrop-filter: blur(12px); border: 1px solid rgba(0,0,0,.08); border-radius: 10px; padding: 5px; min-width: 140px; box-shadow: 0 10px 24px rgba(17,24,39,.18); }
   #plusMenu div { padding: 8px 10px; font-size: 13px; border-radius: 7px; cursor: pointer; }
   #plusMenu div:hover { background: rgba(0,0,0,.06); }
-  .sec { font-size: 11px; color: #6b7280; padding: 10px 8px 6px; letter-spacing: .5px; }
+  .sec { font-size: 11px; color: var(--ink-3); padding: 10px 8px 6px; letter-spacing: .5px; }
   .item { display: flex; align-items: center; gap: 9px; padding: 8px; border-radius: 10px; cursor: pointer; margin-bottom: 3px; }
   .item:hover { background: rgba(255,255,255,.7); }
-  .item.active { background: #2563eb; color: #fff; }
+  .item.active { background: var(--focus); color: #fff; }
   .item.off { opacity: .45; }
-  .ava { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; color: #111827; flex-shrink: 0; position: relative; }
+  .ava { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; color: var(--ink); flex-shrink: 0; position: relative; }
   .dot { position: absolute; right: -1px; bottom: -1px; width: 10px; height: 10px; border-radius: 50%; border: 2px solid #fff; background: #22c55e; }
-  .dot.off { background: #6b7280; }
+  .dot.off { background: var(--ink-3); }
   .dot.typing { background: #f59e0b; animation: blink 1s infinite; }
   .unread { position: absolute; right: -1px; top: -1px; width: 9px; height: 9px; border-radius: 50%; background: #ef4444; border: 2px solid #fff; }
-  .item.active .unread { border-color: #2563eb; }
+  .item.active .unread { border-color: var(--focus); }
   @keyframes blink { 50% { opacity: .35; } }
   .item .t { flex: 1; min-width: 0; }
   .item b { display: block; font-size: 13px; font-weight: 600; }
-  .item span { font-size: 11px; color: #6b7280; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .item span { font-size: 11px; color: var(--ink-3); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .item.active span { color: #dbeafe; }
   .badge { margin-left: auto; background: #ef4444; color: #fff; border-radius: 9px; font-size: 10px; line-height: 16px; min-width: 17px; height: 17px; padding: 0 5px; text-align: center; font-weight: 700; flex-shrink: 0; }
-  .cnt { font-size: 11px; background: #e5e7eb; border-radius: 9px; padding: 1px 7px; }
-  .item .more { border: 0; background: transparent; color: #6b7280; font-size: 17px; line-height: 1; cursor: pointer; padding: 0 4px; border-radius: 6px; }
-  .item .more:hover { background: rgba(0,0,0,.08); color: #111827; }
+  .cnt { font-size: 11px; background: var(--line); border-radius: 9px; padding: 1px 7px; }
+  .item .more { border: 0; background: transparent; color: var(--ink-3); font-size: 17px; line-height: 1; cursor: pointer; padding: 0 4px; border-radius: 6px; }
+  .item .more:hover { background: rgba(0,0,0,.08); color: var(--ink); }
   .item.active .more { color: #dbeafe; }
-  #roomMenu { display: none; position: fixed; z-index: 55; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.16); padding: 5px; min-width: 130px; }
+  #roomMenu { display: none; position: fixed; z-index: 55; background: #fff; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.16); padding: 5px; min-width: 130px; }
   #roomMenu div { padding: 8px 10px; font-size: 13px; border-radius: 7px; cursor: pointer; }
-  #roomMenu div:hover { background: #f3f4f6; }
+  #roomMenu div:hover { background: var(--bg); }
   /* 主区 */
   #main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-  #head { display: flex; align-items: center; gap: 10px; padding: 10px 16px; background: rgba(255,255,255,.52); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-bottom: 1px solid rgba(255,255,255,.8); position: relative; }
+  /* z-index 必须给：backdrop-filter 让 #head 自成层叠上下文，#statusbar 又是它后面的兄弟，
+     不给就轮到后面的状态条盖住 #head 里弹出的 #chatMenu（2026-10-20 实测「+ 菜单被挡住」） */
+  #head { display: flex; align-items: center; gap: 10px; padding: 10px 16px; background: rgba(255,255,255,.52); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-bottom: 1px solid rgba(255,255,255,.8); position: relative; z-index: 50; }
   #head .title { font-weight: 700; font-size: 15px; }
-  #head .peers { font-size: 12px; color: #6b7280; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  #groupBtn { border: 1px solid #d1d5db; background: #fff; border-radius: 8px; padding: 6px 12px; font-size: 13px; cursor: pointer; }
-  #groupBtn:hover { background: #f9fafb; }
-  #chatPlus { width: 30px; height: 30px; border-radius: 50%; border: 1px solid #d1d5db; background: #fff; font-size: 17px; line-height: 1; cursor: pointer; color: #374151; }
-  #chatPlus:hover { background: #f3f4f6; }
-  #chatMenu { display: none; position: absolute; right: 12px; top: 46px; z-index: 45; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.12); padding: 5px; min-width: 130px; }
+  #head .peers { font-size: 12px; color: var(--ink-3); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #groupBtn { border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: 6px 12px; font-size: 13px; cursor: pointer; }
+  #groupBtn:hover { background: var(--surface-2); }
+  #chatPlus { width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--line); background: #fff; font-size: 17px; line-height: 1; cursor: pointer; color: var(--ink-2); }
+  #chatPlus:hover { background: var(--bg); }
+  #chatMenu { display: none; position: absolute; right: 12px; top: 46px; z-index: 45; background: #fff; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.12); padding: 5px; min-width: 130px; }
   #chatMenu div { padding: 8px 10px; font-size: 13px; border-radius: 7px; cursor: pointer; }
-  #chatMenu div:hover { background: #f3f4f6; }
+  #chatMenu div:hover { background: var(--bg); }
   #selbar button#doFwd.danger { background: #dc2626; border-color: #dc2626; }
   #netTag { font-size: 12px; padding: 3px 8px; border-radius: 6px; background: #dcfce7; color: #166534; }
   #netTag.off { background: #fee2e2; color: #991b1b; }
@@ -72,16 +74,50 @@
   .msg .who { font-size: 11px; opacity: .65; margin-bottom: 3px; }
   .msg .t { font-size: 10px; opacity: .6; text-align: right; margin-top: 3px; }
   .row.user { flex-direction: row-reverse; }
-  .row.user .msg { background: #2563eb; color: #fff; }
+  .row.user .msg { background: var(--focus); color: #fff; }
   .row.system { justify-content: center; }
-  .row.system .msg { background: transparent; color: #9ca3af; font-size: 12px; padding: 2px; }
+  .row.system .msg { background: transparent; color: var(--ink-4); font-size: 12px; padding: 2px; }
+  /* 状态条：模式 + 调用次数 + 暂停/结束 + 席位 + 在场 */
+  #statusbar { padding: 8px 16px 9px; background: rgba(255,255,255,.44); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-bottom: 1px solid rgba(255,255,255,.8); }
+  .sb-row { display: flex; align-items: center; gap: 8px; }
+  #sbMode { font-size: 13px; color: var(--ink); }
+  .sb-calls { font-size: 11px; color: var(--ink-3); }
+  .sb-actions { margin-left: auto; display: flex; gap: 6px; }
+  .sb-actions button { font-size: 12px; padding: 4px 10px; border-radius: 8px; border: 1px solid var(--line); background: #fff; color: var(--ink-2); cursor: pointer; }
+  .sb-actions button:hover { background: var(--surface-2); }
+  .sb-actions button.danger { border-color: #fca5a5; color: #b91c1c; }
+  .sb-actions button.on { border-color: var(--focus); color: var(--focus); background: #eff6ff; }
+  .sb-seats { display: flex; gap: 8px; margin-top: 8px; }
+  .seat { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 6px 9px; border-radius: 10px;
+          background: rgba(255,255,255,.55); border: 1px solid transparent; transition: transform .15s, box-shadow .15s, background .15s; }
+  .seat.speaking { background: #fff; border-color: rgba(37,99,235,.35); box-shadow: 0 4px 14px rgba(37,99,235,.14); transform: translateY(-1px); }
+  .seat.off { opacity: .45; }
+  .seat .ava { width: 26px; height: 26px; font-size: 12px; }
+  .seat .ava .dot { width: 8px; height: 8px; }
+  .seat .st { min-width: 0; }
+  .seat .st b { display: block; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .seat .st span { font-size: 11px; color: var(--ink-3); }
+  .seat.speaking .st span { color: var(--focus); }
+  .sb-presence { margin-top: 6px; flex-wrap: wrap; }
+  .sb-label { font-size: 11px; color: var(--ink-3); }
+  .pill { font-size: 11px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line); background: rgba(255,255,255,.7); color: var(--ink-4); cursor: pointer; }
+  .pill.on { border-color: rgba(37,99,235,.35); color: #1d4ed8; background: #eff6ff; }
+  /* 模式 tab：放在输入框正上方 */
+  #modeTabs { display: flex; gap: 6px; padding: 8px 16px 7px; background: rgba(255,255,255,.5); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-top: 1px solid rgba(255,255,255,.8); }
+  #modeTabs button { font-size: 12px; padding: 5px 13px; border-radius: 8px; border: 1px solid transparent; background: transparent; color: var(--ink-3); cursor: pointer; }
+  #modeTabs button:hover { background: rgba(255,255,255,.85); }
+  #modeTabs button.on { background: #fff; color: var(--ink); border-color: var(--line); font-weight: 600; box-shadow: 0 1px 3px rgba(17,24,39,.06); }
+  #modeTabs .mt-hint { margin-left: auto; font-size: 11px; color: var(--ink-4); align-self: center; }
+  .pfBlock { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: rgba(255,255,255,.6); }
+  .pfBlock > summary { font-size: 12px; color: var(--ink-2); cursor: pointer; }
+  .pfBlock[open] > summary { margin-bottom: 4px; }
   #inputbar { display: flex; gap: 8px; padding: 12px 16px; background: rgba(255,255,255,.5); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-top: 1px solid rgba(255,255,255,.8); position: relative; }
   #pendingWrap { display: none; padding: 8px 16px; background: rgba(255,255,255,.45); border-top: 1px solid rgba(255,255,255,.8); }
-  .pendingItem { display: inline-flex; align-items: center; gap: 8px; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 5px 10px; font-size: 12px; max-width: 100%; }
+  .pendingItem { display: inline-flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 5px 10px; font-size: 12px; max-width: 100%; }
   .pendingItem img { height: 46px; border-radius: 6px; display: block; }
-  .pendingItem button { border: 0; background: transparent; cursor: pointer; color: #9ca3af; font-size: 14px; }
+  .pendingItem button { border: 0; background: transparent; cursor: pointer; color: var(--ink-4); font-size: 14px; }
   .pendingItem button:hover { color: #dc2626; }
-  #attachBtn { width: 38px; border: 1px solid rgba(0,0,0,.12); background: rgba(255,255,255,.85); border-radius: 10px; font-size: 18px; cursor: pointer; color: #374151; }
+  #attachBtn { width: 38px; border: 1px solid rgba(0,0,0,.12); background: rgba(255,255,255,.85); border-radius: 10px; font-size: 18px; cursor: pointer; color: var(--ink-2); }
   #attachBtn:hover { background: #fff; }
   #attachMenu { display: none; position: absolute; left: 16px; bottom: 62px; z-index: 50; background: rgba(255,255,255,.97); border: 1px solid rgba(0,0,0,.08); border-radius: 10px; box-shadow: 0 10px 24px rgba(17,24,39,.18); padding: 5px; min-width: 130px; }
   #attachMenu div { padding: 8px 10px; font-size: 13px; border-radius: 7px; cursor: pointer; }
@@ -94,51 +130,51 @@
                 background: rgba(255,255,255,.98); border: 1px solid rgba(0,0,0,.08); border-radius: 10px; box-shadow: 0 10px 24px rgba(17,24,39,.18); padding: 5px; }
   #mentionPop div.mentionItem { display: flex; align-items: center; gap: 8px; padding: 7px 10px; font-size: 13px; border-radius: 7px; cursor: pointer; }
   #mentionPop div.mentionItem.on { background: rgba(37,99,235,.14); }
-  #mentionPop div.mentionItem .mm2 { color: #9ca3af; font-size: 11px; margin-left: auto; }
+  #mentionPop div.mentionItem .mm2 { color: var(--ink-4); font-size: 11px; margin-left: auto; }
   #in { flex: 1; padding: 10px 12px; border: 1px solid rgba(0,0,0,.12); border-radius: 10px; font-size: 14px; outline: none; background: rgba(255,255,255,.8); }
-  #in:focus { border-color: #2563eb; background: #fff; }
-  #send { padding: 0 22px; border: 0; border-radius: 10px; background: #2563eb; color: #fff; font-size: 14px; cursor: pointer; }
-  #hint { font-size: 11px; color: #6b7280; padding: 6px 16px 8px; background: rgba(255,255,255,.4); }
+  #in:focus { border-color: var(--focus); background: #fff; }
+  #send { padding: 0 22px; border: 0; border-radius: 10px; background: var(--focus); color: #fff; font-size: 14px; cursor: pointer; }
+  #hint { font-size: 11px; color: var(--ink-3); padding: 6px 16px 8px; background: rgba(255,255,255,.4); }
   /* 转发相关 */
   #selbar { display: none; align-items: center; gap: 10px; padding: 8px 16px; background: rgba(219,234,254,.75); backdrop-filter: blur(12px); border-top: 1px solid rgba(191,219,254,.9); font-size: 13px; }
   #selbar.on { display: flex; }
   #selbar button { padding: 5px 12px; border-radius: 7px; border: 1px solid #bfdbfe; background: #fff; cursor: pointer; font-size: 12px; }
-  #selbar button#doFwd { background: #2563eb; color: #fff; border-color: #2563eb; }
-  .row.sel { outline: 2px solid #2563eb; border-radius: 12px; }
-  .pick { align-self: center; width: 18px; height: 18px; border: 2px solid #9ca3af; border-radius: 50%; flex-shrink: 0; cursor: pointer; }
-  .row.sel .pick { background: #2563eb; border-color: #2563eb; }
+  #selbar button#doFwd { background: var(--focus); color: #fff; border-color: var(--focus); }
+  .row.sel { outline: 2px solid var(--focus); border-radius: 12px; }
+  .pick { align-self: center; width: 18px; height: 18px; border: 2px solid var(--ink-4); border-radius: 50%; flex-shrink: 0; cursor: pointer; }
+  .row.sel .pick { background: var(--focus); border-color: var(--focus); }
   .row.user .pick { order: -1; }
   .fwd .quote { margin-top: 6px; border-left: 3px solid rgba(0,0,0,.18); padding: 6px 10px; background: rgba(255,255,255,.55); border-radius: 6px; font-size: 13px; }
-  .fwd .qhead { font-size: 11px; color: #6b7280; margin-bottom: 3px; }
+  .fwd .qhead { font-size: 11px; color: var(--ink-3); margin-bottom: 3px; }
   .fwd .comment { font-size: 14px; }
   /* 右键菜单 */
-  #menu { position: fixed; z-index: 50; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.12); padding: 5px; display: none; min-width: 160px; }
+  #menu { position: fixed; z-index: 50; background: #fff; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.12); padding: 5px; display: none; min-width: 160px; }
   #menu div { padding: 7px 10px; font-size: 13px; border-radius: 7px; cursor: pointer; }
-  #menu div:hover { background: #f3f4f6; }
-  #menu div.sep { height: 1px; padding: 0; margin: 4px 0; background: #e5e7eb; cursor: default; }
+  #menu div:hover { background: var(--bg); }
+  #menu div.sep { height: 1px; padding: 0; margin: 4px 0; background: var(--line); cursor: default; }
   /* 群聊选择弹窗 */
   #modal { position: fixed; inset: 0; background: rgba(17,24,39,.45); display: none; align-items: center; justify-content: center; z-index: 60; }
   #modal .box { background: #fff; border-radius: 14px; padding: 18px; width: 420px; max-width: 92vw; max-height: 80vh; overflow-y: auto; }
   #modal h3 { font-size: 15px; margin-bottom: 12px; }
   #modal .grp { margin-bottom: 16px; }
-  #modal .grp h4 { font-size: 13px; color: #6b7280; margin-bottom: 8px; }
+  #modal .grp h4 { font-size: 13px; color: var(--ink-3); margin-bottom: 8px; }
   #modal label { display: flex; align-items: center; gap: 8px; padding: 5px 4px; font-size: 13px; border-radius: 7px; cursor: pointer; }
-  #modal label:hover { background: #f9fafb; }
+  #modal label:hover { background: var(--surface-2); }
   #modal .foot { text-align: right; margin-top: 6px; }
-  #modal button { padding: 8px 16px; border-radius: 8px; border: 1px solid #d1d5db; background: #fff; cursor: pointer; font-size: 13px; }
-  #modal button.primary { background: #2563eb; color: #fff; border-color: #2563eb; }
-  .mrow { display: flex; align-items: center; gap: 8px; padding: 6px 4px; border-bottom: 1px solid #f3f4f6; font-size: 13px; }
+  #modal button { padding: 8px 16px; border-radius: 8px; border: 1px solid var(--line); background: #fff; cursor: pointer; font-size: 13px; }
+  #modal button.primary { background: var(--focus); color: #fff; border-color: var(--focus); }
+  .mrow { display: flex; align-items: center; gap: 8px; padding: 6px 4px; border-bottom: 1px solid var(--bg); font-size: 13px; }
   .mrow span:first-child { flex: 1; }
-  .mrow .mm { color: #9ca3af; font-size: 11px; }
-  .mrow button { width: 26px; height: 26px; border-radius: 50%; border: 1px solid #e5e7eb; background: #fff; cursor: pointer; font-size: 13px; line-height: 1; }
+  .mrow .mm { color: var(--ink-4); font-size: 11px; }
+  .mrow button { width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line); background: #fff; cursor: pointer; font-size: 13px; line-height: 1; }
   .mrow button.x { color: #dc2626; }
-  .mrow button.a { color: #2563eb; }
+  .mrow button.a { color: var(--focus); }
   #modal .mrow button:disabled { opacity: .3; cursor: default; }
-  .empty { font-size: 13px; color: #9ca3af; padding: 6px 4px; }
+  .empty { font-size: 13px; color: var(--ink-4); padding: 6px 4px; }
   .confirmbar { margin-top: 12px; padding: 10px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; font-size: 13px; }
   .confirmbar:empty { display: none; }
   /* 必须带 #modal 前缀：否则会被 `#modal button` 的 ID 优先级压过，白字白底看不见 */
-  #modal .confirmbar button { padding: 6px 12px; border-radius: 7px; border: 1px solid #d1d5db; background: #fff; color: #1f2937; cursor: pointer; font-size: 12px; }
+  #modal .confirmbar button { padding: 6px 12px; border-radius: 7px; border: 1px solid var(--line); background: #fff; color: var(--ink); cursor: pointer; font-size: 12px; }
   #modal .confirmbar button.danger { background: #dc2626; border-color: #dc2626; color: #fff; }
 
   /* ===== 深色主题（对齐 DeepSeek Harness） ===== */
@@ -173,8 +209,8 @@
   body.dark #attachBtn { background: #26272e; border-color: #33353d; color: #cfd2d9; }
   body.dark #attachBtn:hover { background: #33353d; }
   /* 成员气泡保留各自浅色底，所以深色主题下文字必须用深色，否则白字白底看不清 */
-  body.dark .msg { background: #24252b; color: #1f2937; }
-  body.dark .msg.fwd { color: #1f2937; }
+  body.dark .msg { background: #24252b; color: var(--ink); }
+  body.dark .msg.fwd { color: var(--ink); }
   body.dark .row.user .msg { background: #2b4a7a; color: #eaf1fb; }
   body.dark .row.system .msg { color: #8b8f99; background: transparent; }
   body.dark .msg .who, body.dark .msg .t { color: #4b5563; opacity: 1; }
@@ -193,6 +229,105 @@
   body.dark .hint, body.dark #hint { color: #8b8f99; }
   body.dark #netTag { background: #16341f; color: #7ee0a1; }
   body.dark #netTag.off { background: #3a1f22; color: #f1999f; }
+  /* ==========================================================================
+     视觉层 · 暖纸主题
+     design tokens 照 AIROOM 的 styles.css 提炼（颜色/字号/圆角/阴影是客观数值）
+     这一层是纯覆盖：不改任何布局逻辑。不想要就整块删掉，界面立刻回到原样。
+     ========================================================================== */
+  :root {
+    --bg:#f6f0e7; --bg-deep:#efe6d9; --surface:#fffdf9; --surface-2:#faf5ee; --paper:#fffaf2;
+    --ink:#2b231e; --ink-2:#5a4e45; --ink-3:#6e6156; --line:#e6dccf; --line-strong:#d6c8b6;
+    --lamp:#e0a24e; --focus:#a9701f; --ink-4:#8b7f72; --lamp-soft:#fbecd2; --brand:#3a2c24; --brand-ink:#fff8ee;
+    --ok:#3f8a5c; --warn:#9a7408; --bad:#c0463a;
+    --shadow-sm:0 1px 2px rgb(60 40 20 / 6%), 0 1px 1px rgb(60 40 20 / 4%);
+    --shadow:0 6px 18px -8px rgb(70 45 20 / 18%), 0 2px 6px -2px rgb(70 45 20 / 8%);
+    --shadow-lg:0 24px 60px -24px rgb(60 35 15 / 35%), 0 8px 20px -10px rgb(60 35 15 / 18%);
+    --r-sm:8px; --r-md:12px; --r-lg:16px; --r-xl:22px;
+    --font:"HarmonyOS Sans SC","MiSans","Microsoft YaHei UI","Microsoft YaHei","PingFang SC","Segoe UI",system-ui,sans-serif;
+    --ease:cubic-bezier(.2,.8,.2,1);
+  }
+  html, body { font-family:var(--font) !important; color:var(--ink); -webkit-font-smoothing:antialiased; }
+  body { background:var(--bg) !important; background-image:none !important; }
+
+  #side { background:linear-gradient(180deg,var(--bg-deep),var(--bg)); border-right:1px solid var(--line); backdrop-filter:none; -webkit-backdrop-filter:none; color:var(--ink); }
+  #sideHead b { color:var(--ink); font-size:16px; }
+  .sec { color:var(--ink-3); font-size:12px; font-weight:600; letter-spacing:.04em; }
+  .item { border-radius:var(--r-md); }
+  .item:hover { background:var(--surface); }
+  .item.active { background:var(--surface); color:var(--ink); box-shadow:var(--shadow-sm); border:1px solid var(--line); }
+  .item.active span, .item.active .more { color:var(--ink-3); }
+  .item span { color:var(--ink-3); }
+  #plusBtn, #setBtn { background:var(--surface); border-color:var(--line); color:var(--ink-2); }
+  #sideFoot { border-top-color:var(--line); }
+
+  #head, #statusbar, #modeTabs, #inputbar { background:var(--surface); backdrop-filter:none; -webkit-backdrop-filter:none; border-color:var(--line); }
+  #head .title { color:var(--ink); font-size:16px; }
+  #head .peers { color:var(--ink-3); }
+  #chatPlus { background:var(--surface); border-color:var(--line); color:var(--ink-2); }
+  #netTag { color:var(--ok); background:#e3f1e7; border-color:#cfe6d6; }
+  #netTag.off { color:var(--bad); background:#f9e2de; border-color:#f0cfc9; }
+  #sbMode { color:var(--ink); }
+  .sb-calls, .sb-label { color:var(--ink-3); }
+  .sb-actions button { background:var(--surface); border:1px solid var(--line); color:var(--ink-2); border-radius:var(--r-sm); }
+  .sb-actions button:hover { background:var(--paper); border-color:var(--line-strong); }
+  .sb-actions button.danger { border-color:#e8bdb6; color:var(--bad); }
+  .sb-actions button.on { border-color:#e8c98d; color:#8a5a13; background:var(--lamp-soft); }
+  .seat { background:var(--surface-2); border:1px solid transparent; border-radius:var(--r-md); }
+  .seat.speaking { background:var(--surface); border-color:#e8c98d; box-shadow:0 0 0 3px rgb(224 162 78 / 12%), var(--shadow-sm); animation:seatPulse 1.8s var(--ease) infinite; }
+  @keyframes seatPulse { 0%,100% { box-shadow:0 0 0 3px rgb(224 162 78 / 10%), var(--shadow-sm); } 50% { box-shadow:0 0 0 6px rgb(224 162 78 / 20%), var(--shadow-sm); } }
+  .seat .st b { color:var(--ink); }
+  .seat .st span { color:var(--ink-3); }
+  .seat.speaking .st span { color:#8a5a13; }
+  .pill { background:var(--surface); border:1px solid var(--line); color:var(--ink-3); }
+  .pill.on { background:var(--lamp-soft); border-color:#e8c98d; color:#8a5a13; }
+  #modeTabs button { color:var(--ink-3); }
+  #modeTabs button:hover { background:var(--surface-2); }
+  #modeTabs button.on { background:var(--paper); color:var(--ink); border:1px solid var(--line); box-shadow:var(--shadow-sm); }
+
+  #msgs { background:transparent; }
+  .msg { background:var(--surface); color:var(--ink); border:1px solid var(--line); border-radius:var(--r-lg); box-shadow:var(--shadow-sm); }
+  .msg .who { color:var(--ink-3); opacity:1; }
+  .row.user .msg { background:var(--lamp-soft); color:var(--ink); border-color:#e8cf9f; }
+  .row.system .msg { background:transparent; border:0; box-shadow:none; color:var(--ink-3); }
+
+  #in { background:var(--surface-2); border:1px solid var(--line); color:var(--ink); border-radius:var(--r-md); }
+  #in::placeholder { color:var(--ink-3); opacity:.75; }
+  #in:focus { border-color:var(--lamp); background:#fff; }
+  #send { background:var(--brand); color:var(--brand-ink); border-radius:var(--r-md); }
+  #attachBtn { background:var(--surface); border-color:var(--line); color:var(--ink-2); }
+
+  #modal { background:rgb(43 35 30 / 38%); }
+  #modal .box { background:var(--surface); border-radius:var(--r-xl); box-shadow:var(--shadow-lg); color:var(--ink); }
+  #modal h3 { color:var(--ink); font-size:16px; }
+  #modal .grp h4 { color:var(--ink-3); }
+  #modal label:hover { background:var(--surface-2); }
+  #modal input, #modal textarea, #modal select { background:var(--surface-2) !important; border:1px solid var(--line) !important; border-radius:var(--r-sm) !important; color:var(--ink) !important; }
+  #modal button { background:var(--surface); border:1px solid var(--line); color:var(--ink-2); border-radius:var(--r-sm); }
+  #modal button.primary { background:var(--brand); border-color:var(--brand); color:var(--brand-ink); }
+  #modal button.danger { color:var(--bad); border-color:#e8bdb6; }
+  .pfBlock { border:1px solid var(--line); border-radius:var(--r-sm); padding:8px 10px; background:var(--surface-2); }
+  .badge { background:var(--bad); }
+
+  ::-webkit-scrollbar { width:10px; height:10px; }
+  ::-webkit-scrollbar-thumb { background:#e0d3c1; border:3px solid transparent; background-clip:content-box; border-radius:999px; }
+  ::-webkit-scrollbar-thumb:hover { background:#cdbca6; background-clip:content-box; }
+  ::-webkit-scrollbar-track { background:transparent; }
+
+  /* 首页空态（照他的欢迎屏：问候 → 大标题 → 说明 → 两个动作 → 成员卡） */
+  .home-empty { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px; text-align:center; overflow:auto; }
+  .home-empty .greet { font-size:12px; color:var(--ink-3); background:var(--surface); border:1px solid var(--line); border-radius:999px; padding:4px 14px; margin-bottom:18px; }
+  .home-empty h1 { font-size:32px; line-height:1.4; color:var(--ink); margin:0 0 10px; font-weight:700; }
+  .home-empty p.sub { font-size:14px; color:var(--ink-3); margin:0 0 22px; max-width:520px; line-height:1.75; }
+  .home-empty .acts { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-bottom:26px; }
+  .home-empty .acts button { font-size:13px; padding:9px 18px; border-radius:var(--r-md); border:1px solid var(--line); background:var(--surface); color:var(--ink-2); cursor:pointer; }
+  .home-empty .acts button:hover { background:var(--paper); border-color:var(--line-strong); }
+  .home-empty .acts button.main { background:var(--brand); border-color:var(--brand); color:var(--brand-ink); }
+  .home-empty .members { display:flex; gap:12px; flex-wrap:wrap; justify-content:center; }
+  .home-empty .mcard { width:146px; padding:14px 12px 12px; border-radius:var(--r-lg); border:1px solid var(--line); background:var(--surface); box-shadow:var(--shadow-sm); cursor:pointer; transition:transform .15s var(--ease), box-shadow .15s var(--ease); }
+  .home-empty .mcard:hover { transform:translateY(-2px); box-shadow:var(--shadow); }
+  .home-empty .mcard .big { width:52px; height:52px; border-radius:999px; margin:0 auto 10px; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:700; color:#3a2c24; }
+  .home-empty .mcard b { display:block; font-size:13px; color:var(--ink); margin-bottom:2px; }
+  .home-empty .mcard span { font-size:11px; color:var(--ink-3); }
 </style>
 </head>
 <body>
@@ -205,9 +340,9 @@
       <div data-act="delmember">🚫 删除模型</div>
     </div>
     <div id="sideScroll">
-      <div class="sec">群聊</div>
+      <div class="sec">房间</div>
       <div id="groups"></div>
-      <div class="sec">联系人</div>
+      <div class="sec">成员</div>
       <div id="contacts"></div>
     </div>
     <div id="sideFoot">
@@ -232,9 +367,29 @@
         <div data-cact="settings">⚙ 设置</div>
       </div>
     </div>
+    <div id="statusbar">
+      <div class="sb-row">
+        <b id="sbMode">—</b><span class="sb-calls" id="sbCalls">已调用 0 次</span>
+        <div class="sb-actions">
+          <button id="sbPause">⏸ 暂停接话</button>
+          <button id="sbStop" class="danger">⏹ 结束讨论</button>
+        </div>
+      </div>
+      <div class="sb-seats" id="sbSeats"></div>
+      <div class="sb-row sb-presence">
+        <span class="sb-label">👥 在场</span>
+        <div id="sbPills" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+      </div>
+    </div>
     <div id="msgs"></div>
     <div id="selbar"><span>已选 <b id="selcount">0</b> 条</span><button id="doFwd">转发…</button><button id="cancelSel">取消</button></div>
     <div id="pendingWrap"></div>
+    <div id="modeTabs">
+      <button data-mode="free">圆桌</button>
+      <button data-mode="isolated">独立</button>
+      <button data-mode="flow">自由</button>
+      <span class="mt-hint" id="mtHint">点一下切换本会话的讨论方式</span>
+    </div>
     <div id="inputbar">
       <button id="attachBtn" title="发送表情 / 图片 / 视频 / 文件">＋</button>
       <div id="attachMenu">
@@ -268,12 +423,14 @@ const colorOf = (n) => colorMap[n] ??= COLORS[Object.keys(colorMap).length % COL
 const hhmm = (ts) => new Date(ts || Date.now()).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
 const esc = (s) => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const ava = (name) => `<div class="ava" style="background:${colorOf(name)}">${esc(name[0])}</div>`;
+// 成员头像：配了 emoji 就用 emoji，否则用名字首字
+const avaM = (m) => `<div class="ava" style="background:${colorOf(m.name)}">${esc(m.emoji || m.name[0])}</div>`;
 function attachHtml(a){
   if (!a) return '';
   const mime = a.mime || '';
   if (a.kind === 'image' || mime.startsWith('image/')) return `<div style="margin-top:6px"><img src="${esc(a.url)}" style="max-width:260px;max-height:260px;border-radius:8px;display:block"></div>`;
   if (a.kind === 'video' || mime.startsWith('video/')) return `<div style="margin-top:6px"><video src="${esc(a.url)}" controls style="max-width:320px;max-height:240px;border-radius:8px;display:block"></video></div>`;
-  return `<div style="margin-top:6px"><a href="${esc(a.url)}" download="${esc(a.name)}" target="_blank" style="color:#2563eb;text-decoration:underline">📎 ${esc(a.name)}</a></div>`;
+  return `<div style="margin-top:6px"><a href="${esc(a.url)}" download="${esc(a.name)}" target="_blank" style="color:var(--focus);text-decoration:underline">📎 ${esc(a.name)}</a></div>`;
 }
 const memberById = (id) => M.find(m => m.id === id);
 const isOff = (m) => { const st = states[m.id] || {}; return !!st.down || (!netOnline && m.provider !== 'qwen3-8b'); };
@@ -308,7 +465,7 @@ function renderSide(){
   for (const m of M) {
     const d = document.createElement('div');
     d.className = 'item' + (active === 'dm:' + m.id ? ' active' : '') + (isOff(m) ? ' off' : '');
-    d.innerHTML = `${ava(m.name)}<div class="t"><b>${esc(m.name)}</b><span>${esc(m.model)}${m.persona ? ' · 🎭' + esc(m.persona) : ''}</span></div>`;
+    d.innerHTML = `${avaM(m)}<div class="t"><b>${esc(m.name)}</b><span>${esc(m.model)}${m.persona ? ' · 🎭' + esc(m.persona) : ''}</span></div><button class="more" title="个人资料">⋯</button>`;
     const dot = document.createElement('i');
     const st = states[m.id] || {};
     dot.className = 'dot' + (isOff(m) ? ' off' : st.speaking ? ' typing' : '');
@@ -320,6 +477,7 @@ function renderSide(){
       d.insertAdjacentHTML('beforeend', `<span class="badge">${n > 99 ? '99+' : n}</span>`);
     }
     d.onclick = () => openRoom('dm:' + m.id);
+    d.querySelector('.more').onclick = (e) => { e.stopPropagation(); openMemberMenu(e, m); };
     $('contacts').appendChild(d);
   }
 }
@@ -328,6 +486,8 @@ function paint(m){ const dot = mdom[m.id]; if (!dot) return; const st = states[m
 // ---------- 消息 ----------
 function msgRow(rec){
   if (rec.id && document.getElementById(rec.id)) return null;   // 幂等：同一条不画两次
+  const he = document.getElementById('homeEmpty');
+  if (he) he.remove();                                          // 有消息了，欢迎屏撤掉
   const row = document.createElement('div');
   row.className = 'row ' + (rec.kind === 'user' ? 'user' : rec.kind === 'system' ? 'system' : '');
   row.id = rec.id;
@@ -366,6 +526,35 @@ async function openRoom(id){
   loading = false;
   pendingRows.forEach(msgRow);                        // 补画加载期间到达的消息
   pendingRows = [];
+  renderStatusBar();
+  renderHomeEmpty();
+}
+// 空房间的欢迎屏：问候 → 大标题 → 说明 → 两个动作 → 成员卡（点谁进私聊）
+function renderHomeEmpty(){
+  const old = document.getElementById('homeEmpty');
+  if (old) old.remove();
+  if (active.startsWith('dm:')) return;
+  if (msgs.children.length > 0) return;
+  const list = roomMembers(active);
+  const h = new Date().getHours();
+  const greet = h < 6 ? '凌晨好' : h < 11 ? '早上好' : h < 14 ? '中午好' : h < 18 ? '下午好' : '晚上好';
+  const d = document.createElement('div');
+  d.id = 'homeEmpty';
+  d.className = 'home-empty';
+  d.innerHTML = `<div class="greet">${greet}</div>
+    <h1>今天想跟谁聊？</h1>
+    <p class="sub">选一位成员单独聊，或者「请大家一起来」——${list.length} 位模型会按这个群的方式回答。</p>
+    <div class="acts">
+      <button class="main" id="heGo">请 大家一起来</button>
+      <button id="heGroup">＋ 新建群聊</button>
+    </div>
+    <div class="members">${list.map(m => `<div class="mcard" data-mid="${m.id}">
+        <div class="big" style="background:${colorOf(m.name)}">${esc(m.emoji || m.name[0])}</div>
+        <b>${esc(m.name)}</b><span>${esc(m.model)}</span></div>`).join('')}</div>`;
+  msgs.appendChild(d);
+  $('heGo').onclick = () => { const i = $('in'); if (i) i.focus(); };
+  $('heGroup').onclick = () => { if (typeof openNewGroup === 'function') openNewGroup(); };
+  d.querySelectorAll('.mcard').forEach(c => { c.onclick = () => openRoom('dm:' + c.dataset.mid); });
 }
 function setNet(online){
   netOnline = online;
@@ -389,9 +578,9 @@ function openMembers(roomId){
   const rest = M.filter(m => !r.members.includes(m.id));
   const box = $('modalBox');
   box.innerHTML = `<h3>群成员 · ${esc(r.name)}</h3>
-    <div style="font-size:12px;color:#6b7280;margin:10px 0 4px">当前成员（${cur.length}）</div>
+    <div style="font-size:12px;color:var(--ink-3);margin:10px 0 4px">当前成员（${cur.length}）</div>
     ${cur.map(m => `<div class="mrow"><span>${esc(m.name)}</span><span class="mm">${esc(m.model)}</span><button class="x" data-id="${m.id}">✕</button></div>`).join('') || '<div class="empty">还没有成员</div>'}
-    <div style="font-size:12px;color:#6b7280;margin:14px 0 4px">可添加</div>
+    <div style="font-size:12px;color:var(--ink-3);margin:14px 0 4px">可添加</div>
     ${rest.map(m => `<div class="mrow"><span>${esc(m.name)}</span><span class="mm">${esc(m.model)}</span><button class="a" data-id="${m.id}">＋</button></div>`).join('') || '<div class="empty">都已在本群</div>'}
     <div id="confirmBar"></div>`;
   $('modal').style.display = 'flex';
@@ -412,7 +601,87 @@ function refreshHeader(){
   const list = roomMembers(active);
   $('title').textContent = roomName(active);
   $('peers').textContent = active.startsWith('dm:') ? (list[0]?.model ?? '') : list.map(m => m.name).join('、');
+  renderStatusBar();
 }
+
+// ---------- 状态条：模式 / 调用次数 / 暂停·结束 / 席位 / 在场 ----------
+const MODE_LABEL = { free: '圆桌讨论中', isolated: '各自作答中', flow: '自由讨论中', persona: '按设定发言中' };
+let roundInfo = {};                       // roomId -> { calls, paused }，由服务端 round 事件同步
+const apiPost = (path, body) => fetch(path, {
+  method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+}).then(r => r.json());
+
+function renderStatusBar(){
+  const bar = $('statusbar');
+  if (!bar) return;
+  const isDm = active.startsWith('dm:');
+  bar.style.display = isDm ? 'none' : '';
+  $('modeTabs').style.display = isDm ? 'none' : '';
+  if (isDm) return;
+  const st = roomSettings[active] || {};
+  const mode = st.mode === 'persona' ? 'free' : (st.mode || 'free');   // 旧数据兼容：设定模式已取消
+  const ri = roundInfo[active] || { calls: 0, paused: false };
+  const activeRun = !!ri.who || !!ri.paused;               // 暂停中这一轮还挂着，也算"进行中"
+  let label = MODE_LABEL[mode] || '讨论中';
+  if (ri.who) label += ' · ' + ri.who + ' 正在发言';
+  if (ri.beat && ri.total) label += ' · 第 ' + ri.beat + '/' + ri.total + ' 拍';
+  if (activeRun && ri.paused) label += ' · 已暂停';
+  $('sbMode').textContent = label;
+  $('sbCalls').textContent = '已调用 ' + (ri.calls || 0) + ' 次';
+  $('sbCalls').title = '本轮调用次数（含失败与中断）；次数不等于费用';
+  const pb = $('sbPause');
+  pb.textContent = ri.paused ? '▶ 继续接话' : '⏸ 暂停接话';
+  pb.classList.toggle('on', !!(activeRun && ri.paused));
+  pb.disabled = !activeRun;
+  pb.style.opacity = activeRun ? '' : '.45';
+  const sbStopBtn = $('sbStop');
+  sbStopBtn.disabled = !activeRun;
+  sbStopBtn.style.opacity = activeRun ? '' : '.45';
+  const list = roomMembers(active);
+  const pres = st.present || {};
+  $('sbSeats').innerHTML = list.map(m => {
+    const s = states[m.id] || {};
+    const out = pres[m.id] === false;
+    const speaking = !!s.speaking && !out;
+    const off = isOff(m) || out;
+    const label = out ? '已离席' : speaking ? '正在说话…' : isOff(m) ? '不在线' : '在场';
+    return `<div class="seat${speaking ? ' speaking' : ''}${off ? ' off' : ''}" data-id="${m.id}">${avaM(m)}` +
+      `<div class="st"><b>${esc(m.name)}${speaking ? ' · 正在发言' : ''}</b><span>${label}</span></div></div>`;
+  }).join('');
+  $('sbPills').innerHTML = list.map(m => {
+    const on = pres[m.id] !== false;
+    return `<button class="pill${on ? ' on' : ''}" data-pid="${m.id}">${esc(m.name)} ${on ? '✓' : '○'}</button>`;
+  }).join('');
+  document.querySelectorAll('#modeTabs button').forEach(b => b.classList.toggle('on', b.dataset.mode === mode));
+}
+$('sbPause').onclick = async () => {
+  if (active.startsWith('dm:')) return;
+  const next = !(roundInfo[active] || {}).paused;
+  const r = await apiPost('/api/room-pause', { room: active, paused: next });
+  if (r.ok) { roundInfo[active] = { ...(roundInfo[active] || {}), paused: next }; renderStatusBar(); }
+};
+$('sbStop').onclick = async () => {
+  if (active.startsWith('dm:')) return;
+  await apiPost('/api/room-stop', { room: active });
+};
+$('sbPills').onclick = async (e) => {
+  const btn = e.target.closest('.pill');
+  if (!btn) return;
+  const id = btn.dataset.pid;
+  const st = roomSettings[active] || {};
+  const pres = { ...(st.present || {}) };
+  pres[id] = pres[id] === false;          // 离席 ↔ 回席
+  const r = await apiPost('/api/room-settings', { room: active, present: pres });
+  if (r.ok) { roomSettings[active] = r.settings; renderStatusBar(); }
+};
+document.querySelectorAll('#modeTabs button').forEach(b => {
+  b.onclick = async () => {
+    if (active.startsWith('dm:')) return;
+    const r = await apiPost('/api/room-settings', { room: active, mode: b.dataset.mode });
+    if (r.ok) { roomSettings[active] = r.settings; renderStatusBar(); }
+    else alert('切换失败：' + (r.error || '未知'));
+  };
+});
 $('chatPlus').onclick = (e) => {
   e.stopPropagation();
   const m = $('chatMenu');
@@ -467,8 +736,8 @@ $('doFwd').onclick = () => {
   const targets = [...Object.keys(rooms).filter(k => rooms[k]), ...M.map(m => 'dm:' + m.id)];
   const box = $('modalBox');
   box.innerHTML = `<h3>转发 ${selected.size} 条消息</h3>
-    <textarea id="fwdComment" placeholder="加一句评论（可选）" style="width:100%;height:70px;padding:8px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;margin-bottom:10px;font-family:inherit"></textarea>
-    <div style="font-size:12px;color:#6b7280;margin-bottom:6px">转发到（可多选）：</div>
+    <textarea id="fwdComment" placeholder="加一句评论（可选）" style="width:100%;height:70px;padding:8px;border:1px solid var(--line);border-radius:8px;font-size:13px;margin-bottom:10px;font-family:inherit"></textarea>
+    <div style="font-size:12px;color:var(--ink-3);margin-bottom:6px">转发到（可多选）：</div>
     ${targets.map(t => `<label><input type="checkbox" value="${t}"> ${esc(roomName(t))}</label>`).join('')}
     <div class="foot"><button class="primary" id="fwdGo">确认转发</button></div>`;
   $('modal').style.display = 'flex';
@@ -512,9 +781,9 @@ $('plusMenu').onclick = (e) => {
 function openNewGroup(){
   const box = $('modalBox');
   box.innerHTML = `<h3>新建群聊</h3>
-    <input id="grpName" placeholder="群聊名称，如：策划组" style="width:100%;padding:9px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit">
-    <div style="font-size:12px;color:#6b7280;margin-bottom:6px">选择成员：</div>
-    ${M.map(m => `<label><input type="checkbox" value="${m.id}"> ${esc(m.name)} <span style="color:#9ca3af;font-size:11px">${esc(m.model)}</span></label>`).join('')}
+    <input id="grpName" placeholder="群聊名称，如：策划组" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit">
+    <div style="font-size:12px;color:var(--ink-3);margin-bottom:6px">选择成员：</div>
+    ${M.map(m => `<label><input type="checkbox" value="${m.id}"> ${esc(m.name)} <span style="color:var(--ink-4);font-size:11px">${esc(m.model)}</span></label>`).join('')}
     <div class="foot"><button class="primary" id="grpGo">创建</button></div>`;
   $('modal').style.display = 'flex';
   $('grpGo').onclick = async () => {
@@ -531,11 +800,11 @@ function openAddMember(){
   const provs = Object.keys(CATALOG);
   const box = $('modalBox');
   box.innerHTML = `<h3>添加模型</h3>
-    <input id="mbName" placeholder="显示名称，如：Kimi-K3" style="width:100%;padding:9px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;margin-bottom:10px;font-family:inherit">
-    <div style="font-size:12px;color:#6b7280;margin:4px 0 4px">线路</div>
-    <select id="mbProv" style="width:100%;padding:9px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;margin-bottom:10px">${provs.map(p => `<option value="${p}">${esc(p)}</option>`).join('')}</select>
-    <div style="font-size:12px;color:#6b7280;margin:4px 0 4px">模型</div>
-    <select id="mbModel" style="width:100%;padding:9px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;margin-bottom:12px"></select>
+    <input id="mbName" placeholder="显示名称，如：Kimi-K3" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;font-size:14px;margin-bottom:10px;font-family:inherit">
+    <div style="font-size:12px;color:var(--ink-3);margin:4px 0 4px">线路</div>
+    <select id="mbProv" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;font-size:13px;margin-bottom:10px">${provs.map(p => `<option value="${p}">${esc(p)}</option>`).join('')}</select>
+    <div style="font-size:12px;color:var(--ink-3);margin:4px 0 4px">模型</div>
+    <select id="mbModel" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;font-size:13px;margin-bottom:12px"></select>
     <div class="foot"><button class="primary" id="mbGo">添加</button></div>`;
   const fill = () => {
     const p = $('mbProv').value;
@@ -553,12 +822,69 @@ function openAddMember(){
 }
 fetch('/api/catalog').then(r => r.json()).then(c => { CATALOG = c.catalog || {}; });
 
+// ---------- 成员 ⋯ 菜单 → 个人资料 ----------
+function openMemberMenu(e, m){
+  const menu = $('roomMenu');
+  menu.innerHTML = `<div data-m="profile">👤 个人资料</div>`;
+  menu.style.display = 'block';
+  menu.style.left = Math.min(e.clientX, innerWidth - 150) + 'px';
+  menu.style.top = Math.min(e.clientY, innerHeight - 90) + 'px';
+  menu.onclick = (ev) => {
+    if (!ev.target.dataset.m) return;
+    menu.style.display = 'none';
+    openMemberProfile(m);
+  };
+}
+function openMemberProfile(m){
+  const provs = Object.keys(CATALOG);
+  if (!provs.includes(m.provider)) provs.unshift(m.provider);
+  const box = $('modalBox');
+  const inp = (id, val, ph) => `<input id="${id}" value="${esc(val || '')}" placeholder="${esc(ph || '')}" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;font-size:14px;font-family:inherit;margin-bottom:10px">`;
+  box.innerHTML = `<h3>个人资料 · ${esc(m.name)}</h3>
+    <div style="font-size:12px;color:var(--ink-3);margin:6px 0 4px">名字</div>${inp('mpName', m.name)}
+    <div style="font-size:12px;color:var(--ink-3);margin:6px 0 4px">头像（填一个表情，留空就用名字首字）</div>${inp('mpEmoji', m.emoji || '', '🐳')}
+    <div style="font-size:12px;color:var(--ink-3);margin:6px 0 4px">人设（<b>全局生效</b>：所有会话都按它说话；留空＝没有）</div>
+    <textarea id="mpPersona" rows="3" placeholder="例如：说结论优先，不铺垫；遇到不确定直接说不知道"
+      style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;margin-bottom:10px">${esc(m.persona || '')}</textarea>
+    <div style="font-size:12px;color:var(--ink-3);margin:6px 0 4px">线路</div>
+    <select id="mpProv" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;font-size:13px;margin-bottom:10px">${provs.map(p => `<option value="${esc(p)}"${p === m.provider ? ' selected' : ''}>${esc(p)}</option>`).join('')}</select>
+    <div style="font-size:12px;color:var(--ink-3);margin:6px 0 4px">模型</div>
+    <select id="mpModel" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;font-size:13px;margin-bottom:14px"></select>
+    <div class="foot"><button id="mpDel" style="color:#b91c1c">从所有群移除</button><button id="mpCancel">取消</button><button class="primary" id="mpGo">保存</button></div>`;
+  const fillModels = () => {
+    const p = $('mpProv').value;
+    const list = (CATALOG[p] || []).slice();
+    if (p === m.provider && !list.includes(m.model)) list.unshift(m.model);
+    $('mpModel').innerHTML = list.map(x => `<option value="${esc(x)}">${esc(x)}</option>`).join('');
+    if (p === m.provider) $('mpModel').value = m.model;
+  };
+  $('mpProv').onchange = fillModels; fillModels();
+  $('modal').style.display = 'flex';
+  $('mpCancel').onclick = () => { $('modal').style.display = 'none'; };
+  $('mpDel').onclick = () => { $('modal').style.display = 'none'; openRemoveMember(); };
+  $('mpGo').onclick = async () => {
+    const r = await apiPost('/api/members/update', {
+      id: m.id,
+      name: $('mpName').value,
+      emoji: $('mpEmoji').value,
+      persona: $('mpPersona').value,
+      provider: $('mpProv').value,
+      model: $('mpModel').value,
+    });
+    if (!r.ok) { alert('保存失败：' + (r.error || '未知')); return; }
+    M = M.map(x => x.id === r.member.id ? r.member : x);
+    $('modal').style.display = 'none';
+    renderSide(); renderStatusBar();
+    if (active.startsWith('dm:') && active.slice(3) === m.id) refreshHeader();
+  };
+}
+
 // ---------- 搜索 ----------
 function openSearch(){
   const box = $('modalBox');
   box.innerHTML = `<h3>搜索</h3>
-    <input id="searchQ" placeholder="输入关键词，跨所有会话搜索…" style="width:100%;padding:9px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;margin-bottom:10px;font-family:inherit">
-    <div id="searchHits" style="max-height:46vh;overflow-y:auto;font-size:13px;color:#6b7280">输入关键词开始搜索</div>`;
+    <input id="searchQ" placeholder="输入关键词，跨所有会话搜索…" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;font-size:14px;margin-bottom:10px;font-family:inherit">
+    <div id="searchHits" style="max-height:46vh;overflow-y:auto;font-size:13px;color:var(--ink-3)">输入关键词开始搜索</div>`;
   $('modal').style.display = 'flex';
   const q = $('searchQ');
   q.focus();
@@ -573,9 +899,9 @@ function openSearch(){
       if (!r.hits.length) { hitsEl.textContent = '没有找到匹配内容'; return; }
       hitsEl.innerHTML = r.hits.map(h => {
         const t = new Date(h.ts).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
-        return `<div class="hit" data-room="${esc(h.room)}" style="padding:8px;border-radius:8px;cursor:pointer;margin-bottom:4px;background:#f9fafb">
-          <div style="font-size:11px;color:#9ca3af">${esc(h.roomName)} · ${esc(h.from)} · ${t}</div>
-          <div style="color:#1f2937">${esc(h.text.slice(0, 120))}</div></div>`;
+        return `<div class="hit" data-room="${esc(h.room)}" style="padding:8px;border-radius:8px;cursor:pointer;margin-bottom:4px;background:var(--surface-2)">
+          <div style="font-size:11px;color:var(--ink-4)">${esc(h.roomName)} · ${esc(h.from)} · ${t}</div>
+          <div style="color:var(--ink)">${esc(h.text.slice(0, 120))}</div></div>`;
       }).join('');
       hitsEl.querySelectorAll('.hit').forEach(el => el.onclick = () => { $('modal').style.display = 'none'; openRoom(el.dataset.room); });
     }, 300);
@@ -610,7 +936,7 @@ function openRename(roomId){
   const r = rooms[roomId]; if (!r) return;
   const box = $('modalBox');
   box.innerHTML = `<h3>重命名群聊</h3>
-    <input id="rnName" value="${esc(r.name)}" style="width:100%;padding:9px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;margin:10px 0;font-family:inherit">
+    <input id="rnName" value="${esc(r.name)}" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;font-size:14px;margin:10px 0;font-family:inherit">
     <div class="foot"><button id="rnCancel">取消</button> <button class="primary" id="rnGo">保存</button></div>`;
   $('modal').style.display = 'flex';
   $('rnName').focus(); $('rnName').select();
@@ -641,10 +967,10 @@ function openDelete(roomId = active){
   };
 
   box.innerHTML = `<h3>删除</h3>
-    <p style="font-size:13px;color:#6b7280;margin:10px 0 14px">对「<b>${esc(name)}</b>」执行哪种操作？</p>
+    <p style="font-size:13px;color:var(--ink-3);margin:10px 0 14px">对「<b>${esc(name)}</b>」执行哪种操作？</p>
     ${isCustom ? `<button class="primary" id="optRoom" style="width:100%;padding:12px;margin-bottom:8px;background:#dc2626;border-color:#dc2626">🗑 删除该群（群和全部聊天记录一起删除）</button>` : ''}
     <button class="primary" id="optClear" style="width:100%;padding:12px;margin-bottom:8px">🧹 清空对话（保留${roomId.startsWith('dm:') ? '聊天' : '群'}，只删记录）</button>
-    <div style="font-size:11px;color:#9ca3af;margin-top:6px">${isCustom ? '' : '「工作模式 / 自由模式」是内置群，只能清空记录，不能删除群本身。'}</div>`;
+    <div style="font-size:11px;color:var(--ink-4);margin-top:6px">${isCustom ? '' : '「工作模式 / 自由模式」是内置群，只能清空记录，不能删除群本身。'}</div>`;
   $('modal').style.display = 'flex';
 
   if (isCustom) $('optRoom').onclick = () => askConfirm('确认删除该群',
@@ -671,7 +997,7 @@ function openDelete(roomId = active){
 function openRemoveMember(){
   const box = $('modalBox');
   box.innerHTML = `<h3>删除模型</h3>
-    <div style="font-size:12px;color:#6b7280;margin:10px 0 4px">点 ✕ 把该模型整体移出圆桌（会从所有群聊中移除，历史记录保留）</div>
+    <div style="font-size:12px;color:var(--ink-3);margin:10px 0 4px">点 ✕ 把该模型整体移出圆桌（会从所有群聊中移除，历史记录保留）</div>
     ${M.map(m => `<div class="mrow"><span>${esc(m.name)}</span><span class="mm">${esc(m.provider)} / ${esc(m.model)}</span><button class="x" data-id="${m.id}">✕</button></div>`).join('')}
     <div id="confirmBar"></div>`;
   $('modal').style.display = 'flex';
@@ -701,28 +1027,28 @@ function openRoomSettings(){
   let order = isGroup ? [...(rooms[active]?.members || [])] : [];
   const box = $('modalBox');
   box.innerHTML = `<h3>设置 · ${esc(roomName(active))}</h3>
-    <div style="font-size:12px;color:#6b7280;margin:12px 0 4px">对话上下文长度（字符）。数值越大，模型记得越多，也越费 token。</div>
-    <input id="rsHist" type="number" min="500" max="400000" step="500" value="${cur}" style="width:100%;padding:9px;border:1px solid #d1d5db;border-radius:8px;font-size:14px">
-    <div style="font-size:11px;color:#9ca3af;margin-top:6px">默认 ${histDefault}（约 4000 tokens，约 20 条消息）· 仅对本会话生效</div>
+    <div style="font-size:12px;color:var(--ink-3);margin:12px 0 4px">对话上下文长度（字符）。数值越大，模型记得越多，也越费 token。</div>
+    <input id="rsHist" type="number" min="500" max="400000" step="500" value="${cur}" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;font-size:14px">
+    <div style="font-size:11px;color:var(--ink-4);margin-top:6px">默认 ${histDefault}（约 4000 tokens，约 20 条消息）· 仅对本会话生效</div>
 
-    <div style="font-size:12px;color:#6b7280;margin:16px 0 6px">互搏最大轮数（「让A和B讨论」时最多来回几轮）：</div>
-    <input id="rsRounds" type="number" min="1" max="50" step="1" value="${st.maxRounds ?? maxR}" style="width:100%;padding:9px;border:1px solid #d1d5db;border-radius:8px;font-size:14px">
-    <div style="font-size:11px;color:#9ca3af;margin-top:6px">默认 ${maxR} 轮 · 仅对本会话生效</div>
+    <div style="font-size:12px;color:var(--ink-3);margin:16px 0 6px">互搏最大轮数（「让A和B讨论」时最多来回几轮）：</div>
+    <input id="rsRounds" type="number" min="1" max="50" step="1" value="${st.maxRounds ?? maxR}" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;font-size:14px">
+    <div style="font-size:11px;color:var(--ink-4);margin-top:6px">默认 ${maxR} 轮 · 仅对本会话生效</div>
 
-    <div style="font-size:12px;color:#6b7280;margin:16px 0 6px">会话模式：</div>
-    <select id="rsMode" style="width:100%;padding:9px;border:1px solid #d1d5db;border-radius:8px;font-size:13px">
+    <div style="font-size:12px;color:var(--ink-3);margin:16px 0 6px">会话模式：</div>
+    <select id="rsMode" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;font-size:13px">
       <option value="free">圆桌模式 —— 各成员轮流发言，后一位能看到前一位说的（默认）</option>
       <option value="isolated">独立模式 —— 各成员同时独立作答，互相看不到对方答案（避免附和）</option>
       <option value="flow">自由模式 —— 一拍一人，谁开口按发言倾向随机（像群聊）</option>
-      <option value="persona">设定模式 —— 为每个成员指定本会话人设</option>
     </select>
-    <div id="modeHint" style="font-size:11px;color:#6b7280;margin-top:8px;line-height:1.6"></div>
+    <div style="font-size:11px;color:var(--ink-4);margin-top:6px">成员的人设不在这里设 —— 在左侧联系人那一行点 ⋯ → 个人资料，全局生效。</div>
+    <div id="modeHint" style="font-size:11px;color:var(--ink-3);margin-top:8px;line-height:1.6"></div>
     <div id="personaArea" style="margin-top:10px"></div>
     <div id="flowArea" style="margin-top:10px"></div>
 
-    ${isGroup ? `<div id="orderWrap"><div style="font-size:12px;color:#6b7280;margin:16px 0 6px">发言顺序（群里轮流回答的先后）：</div>
-      <div id="orderList" style="border:1px solid #e5e7eb;border-radius:8px;padding:4px 8px"></div></div>`
-      : `<div style="font-size:12px;color:#9ca3af;margin:16px 0 6px">私聊只有一个成员，无需设置发言顺序。</div>`}
+    ${isGroup ? `<div id="orderWrap"><div style="font-size:12px;color:var(--ink-3);margin:16px 0 6px">发言顺序（群里轮流回答的先后）：</div>
+      <div id="orderList" style="border:1px solid var(--line);border-radius:8px;padding:4px 8px"></div></div>`
+      : `<div style="font-size:12px;color:var(--ink-4);margin:16px 0 6px">私聊只有一个成员，无需设置发言顺序。</div>`}
     <div class="foot"><button id="rsReset">恢复默认</button> <button class="primary" id="rsGo">保存</button></div>`;
   $('modal').style.display = 'flex';
   $('rsReset').onclick = () => { $('rsHist').value = histDefault; };
@@ -743,32 +1069,34 @@ function openRoomSettings(){
     if (ow) ow.style.display = (mode === 'free' || mode === 'persona') ? '' : 'none';
 
     const area = $('personaArea');
-    if (mode !== 'persona') area.innerHTML = '';
-    else area.innerHTML = `<div style="font-size:11px;color:#6b7280;margin-bottom:6px">每个成员在本会话里的身份设定（留空则不用人设）。写好保存后，该成员每轮都按这个设定说话。</div>` +
+    if (!list.length) area.innerHTML = '';
+    else area.innerHTML = `<details class="pfBlock">
+      <summary>本会话额外设定（可选）—— 只在这个群里覆盖成员默认人设</summary>
+      <div style="font-size:11px;color:var(--ink-3);margin:8px 0 6px">留空＝用成员自己的默认人设（在左侧 ⋯ → 个人资料 里设）。</div>` +
       list.map(m => `<div style="margin-bottom:8px">
-        <div style="font-size:12px;color:#374151;margin-bottom:3px">${esc(m.name)} <span style="color:#9ca3af;font-size:11px">${esc(m.model)}</span></div>
-        <textarea class="personaInput" data-id="${m.id}" rows="2" placeholder="例如：你是方案的提出者，先给结论再给依据，不评价别人"
-          style="width:100%;padding:7px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;font-family:inherit;resize:vertical">${esc(st.personas?.[m.id] || '')}</textarea>
-      </div>`).join('');
+        <div style="font-size:12px;color:var(--ink-2);margin-bottom:3px">${esc(m.name)} <span style="color:var(--ink-4);font-size:11px">${esc(m.model)}</span></div>
+        <textarea class="personaInput" data-id="${m.id}" rows="2" placeholder="例如：本群里你是审稿人，只挑毛病，不给方案"
+          style="width:100%;padding:7px;border:1px solid var(--line);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical">${esc(st.personas?.[m.id] || '')}</textarea>
+      </div>`).join('') + `</details>`;
 
     const fa = $('flowArea');
     if (mode !== 'flow') { fa.innerHTML = ''; return; }
     const tw = st.talkativeness || {};
     const beats = st.autoBeats ?? 3;
-    fa.innerHTML = `<div style="font-size:11px;color:#6b7280;margin-bottom:8px">每个成员的发言倾向：0% 从不主动开口（被点名仍会答），100% 每拍都抢。</div>` +
+    fa.innerHTML = `<div style="font-size:11px;color:var(--ink-3);margin-bottom:8px">每个成员的发言倾向：0% 从不主动开口（被点名仍会答），100% 每拍都抢。</div>` +
       list.map(m => {
         const v = Number(tw[m.id] ?? 50);
         return `<div style="margin-bottom:9px">
-          <div style="display:flex;justify-content:space-between;font-size:12px;color:#374151;margin-bottom:2px">
-            <span>${esc(m.name)} <span style="color:#9ca3af;font-size:11px">${esc(m.model)}</span></span>
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--ink-2);margin-bottom:2px">
+            <span>${esc(m.name)} <span style="color:var(--ink-4);font-size:11px">${esc(m.model)}</span></span>
             <b class="tv" data-for="${m.id}">${v}%</b>
           </div>
           <input class="talkRange" data-id="${m.id}" type="range" min="0" max="100" step="10" value="${v}" style="width:100%">
         </div>`;
       }).join('') +
-      `<div style="font-size:12px;color:#6b7280;margin:14px 0 6px">自动续拍（一条消息后最多几个人开口）：</div>
-       <input id="rsBeats" type="number" min="1" max="10" step="1" value="${beats}" style="width:100%;padding:9px;border:1px solid #d1d5db;border-radius:8px;font-size:14px">
-       <div style="font-size:11px;color:#9ca3af;margin-top:6px">每拍调用一次模型，拍数越多越慢越贵。默认 3。</div>`;
+      `<div style="font-size:12px;color:var(--ink-3);margin:14px 0 6px">自动续拍（一条消息后最多几个人开口）：</div>
+       <input id="rsBeats" type="number" min="1" max="10" step="1" value="${beats}" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;font-size:14px">
+       <div style="font-size:11px;color:var(--ink-4);margin-top:6px">每拍调用一次模型，拍数越多越慢越贵。默认 3。</div>`;
     fa.querySelectorAll('.talkRange').forEach(r => {
       r.oninput = () => {
         const b = fa.querySelector('.tv[data-for="' + r.dataset.id + '"]');
@@ -829,7 +1157,7 @@ function openRoomSettings(){
 $('appTitle').onclick = () => {
   const box = $('modalBox');
   box.innerHTML = `<h3>重命名</h3>
-    <input id="appTitleInput" value="${esc($('appTitle').textContent)}" style="width:100%;padding:9px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;margin:10px 0;font-family:inherit">
+    <input id="appTitleInput" value="${esc($('appTitle').textContent)}" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;font-size:14px;margin:10px 0;font-family:inherit">
     <div class="foot"><button id="atCancel">取消</button> <button class="primary" id="atGo">保存</button></div>`;
   $('modal').style.display = 'flex';
   $('appTitleInput').focus(); $('appTitleInput').select();
@@ -847,7 +1175,7 @@ $('appTitle').onclick = () => {
 // ---------- 背景设置 ----------
 const GRAD = 'linear-gradient(135deg, #dbeafe 0%, #ede9fe 35%, #fce7f3 65%, #fef3c7 100%)';
 const DARK_GRAD = 'linear-gradient(160deg, #15171c 0%, #1c2029 45%, #111317 100%)';
-let themeState = { dark: true, gradient: true, color: '#f3f4f6', pattern: 'none', image: '' };
+let themeState = { dark: true, gradient: true, color: 'var(--bg)', pattern: 'none', image: '' };
 function patternCss(p){
   return {
     none: null,
@@ -856,8 +1184,18 @@ function patternCss(p){
     diag: 'repeating-linear-gradient(45deg, rgba(0,0,0,.045) 0 2px, transparent 2px 12px)',
   }[p] || null;
 }
+// 暖纸主题接管开关：true = 强制浅色纸张背景（本批视觉层的代价：背景设置暂时失效）
+// 想恢复原来的深色/自定义背景，把这里改成 false 即可。
+const PAPER_THEME = true;
 function applyTheme(t){
-  themeState = { dark: t.dark !== false, gradient: !!t.gradient, color: t.color || '#f3f4f6', pattern: t.pattern || 'none', image: t.image || '' };
+  if (PAPER_THEME) {
+    themeState = { dark: false, gradient: false, color: '#f6f0e7', pattern: 'none', image: '' };
+    document.body.classList.remove('dark');
+    document.body.style.backgroundImage = 'none';
+    document.body.style.backgroundColor = '#f6f0e7';
+    return;
+  }
+  themeState = { dark: t.dark !== false, gradient: !!t.gradient, color: t.color || 'var(--bg)', pattern: t.pattern || 'none', image: t.image || '' };
   document.body.classList.toggle('dark', themeState.dark);
   const body = document.body.style;
   const pat = patternCss(themeState.pattern);
@@ -878,15 +1216,15 @@ function applyTheme(t){
 }
 function openThemeModal(){
   const box = $('modalBox');
-  const presets = [['#f3f4f6','浅灰'],['#ffffff','纯白'],['#eef2ff','淡蓝'],['#fdf2f8','淡粉'],['#f0fdf4','淡绿'],['#fffbeb','米黄'],['#e5e7eb','中灰']];
+  const presets = [['var(--bg)','浅灰'],['#ffffff','纯白'],['#eef2ff','淡蓝'],['#fdf2f8','淡粉'],['#f0fdf4','淡绿'],['#fffbeb','米黄'],['var(--line)','中灰']];
   const mode = themeState.image ? 'image' : (themeState.gradient ? 'grad' : 'solid');
   box.innerHTML = `<h3>🎨 背景设置</h3>
-    <div style="font-size:12px;color:#6b7280;margin:10px 0 6px">主题</div>
+    <div style="font-size:12px;color:var(--ink-3);margin:10px 0 6px">主题</div>
     <div style="display:flex;gap:8px;margin-bottom:12px">
-      <button id="thDark" style="flex:1;padding:9px;border-radius:8px;cursor:pointer;font-size:13px;border:2px solid ${themeState.dark ? '#2563eb' : '#e5e7eb'};background:#1e1f24;color:#e6e6e6">🌙 深色</button>
-      <button id="thLight" style="flex:1;padding:9px;border-radius:8px;cursor:pointer;font-size:13px;border:2px solid ${themeState.dark ? '#e5e7eb' : '#2563eb'};background:#fff;color:#1f2937">☀️ 浅色</button>
+      <button id="thDark" style="flex:1;padding:9px;border-radius:8px;cursor:pointer;font-size:13px;border:2px solid ${themeState.dark ? 'var(--focus)' : 'var(--line)'};background:#1e1f24;color:#e6e6e6">🌙 深色</button>
+      <button id="thLight" style="flex:1;padding:9px;border-radius:8px;cursor:pointer;font-size:13px;border:2px solid ${themeState.dark ? 'var(--line)' : 'var(--focus)'};background:#fff;color:var(--ink)">☀️ 浅色</button>
     </div>
-    <div style="font-size:12px;color:#6b7280;margin:10px 0 6px">底色</div>
+    <div style="font-size:12px;color:var(--ink-3);margin:10px 0 6px">底色</div>
     <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:6px">
       <input type="radio" name="bgMode" value="grad" ${mode === 'grad' ? 'checked' : ''}> 渐变（默认）</label>
     <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:6px">
@@ -896,34 +1234,34 @@ function openThemeModal(){
 
     <div id="solidRow" style="display:${mode === 'solid' ? 'block' : 'none'};margin:6px 0 12px">
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
-        ${presets.map(([c, n]) => `<button class="swatch" data-color="${c}" title="${n}" style="width:30px;height:30px;border-radius:8px;border:2px solid ${themeState.color === c ? '#2563eb' : '#e5e7eb'};background:${c};cursor:pointer"></button>`).join('')}
+        ${presets.map(([c, n]) => `<button class="swatch" data-color="${c}" title="${n}" style="width:30px;height:30px;border-radius:8px;border:2px solid ${themeState.color === c ? 'var(--focus)' : 'var(--line)'};background:${c};cursor:pointer"></button>`).join('')}
       </div>
-      <input type="color" id="customColor" value="${themeState.color}" style="width:56px;height:32px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;vertical-align:middle">
-      <span style="font-size:12px;color:#6b7280;margin-left:8px">自定义颜色</span>
+      <input type="color" id="customColor" value="${themeState.color}" style="width:56px;height:32px;border:1px solid var(--line);border-radius:8px;background:#fff;vertical-align:middle">
+      <span style="font-size:12px;color:var(--ink-3);margin-left:8px">自定义颜色</span>
     </div>
 
     <div id="imageRow" style="display:${mode === 'image' ? 'block' : 'none'};margin:6px 0 12px">
       <div style="display:flex;align-items:center;gap:10px">
-        <button id="pickBg" style="padding:8px 14px;border:1px solid #d1d5db;border-radius:8px;background:#fff;cursor:pointer;font-size:13px">选择图片…</button>
-        <span id="bgName" style="font-size:12px;color:#6b7280">${themeState.image ? '已选择图片' : '未选择'}</span>
+        <button id="pickBg" style="padding:8px 14px;border:1px solid var(--line);border-radius:8px;background:#fff;cursor:pointer;font-size:13px">选择图片…</button>
+        <span id="bgName" style="font-size:12px;color:var(--ink-3)">${themeState.image ? '已选择图片' : '未选择'}</span>
         <button id="clearBg" style="padding:6px 10px;border:0;background:transparent;color:#dc2626;cursor:pointer;font-size:12px">清除</button>
       </div>
-      <div style="font-size:11px;color:#9ca3af;margin-top:6px">建议用不刺眼的浅色图，字才看得清</div>
+      <div style="font-size:11px;color:var(--ink-4);margin-top:6px">建议用不刺眼的浅色图，字才看得清</div>
     </div>
 
-    <div style="font-size:12px;color:#6b7280;margin:10px 0 6px">图案（叠在底色或图片上）</div>
-    <select id="patSel" style="width:100%;padding:9px;border:1px solid #d1d5db;border-radius:8px;font-size:13px">
+    <div style="font-size:12px;color:var(--ink-3);margin:10px 0 6px">图案（叠在底色或图片上）</div>
+    <select id="patSel" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;font-size:13px">
       <option value="none">无</option><option value="dots">点阵</option><option value="grid">网格</option><option value="diag">斜纹</option>
     </select>
-    <div style="font-size:11px;color:#9ca3af;margin-top:6px">改动会实时预览，点保存后所有设备同步</div>
+    <div style="font-size:11px;color:var(--ink-4);margin-top:6px">改动会实时预览，点保存后所有设备同步</div>
     <div class="foot"><button id="thReset">恢复默认</button> <button class="primary" id="thGo">保存</button></div>`;
   $('modal').style.display = 'flex';
   $('patSel').value = themeState.pattern;
 
   const curMode = () => box.querySelector('input[name=bgMode]:checked').value;
   const syncThemeBtns = () => {
-    $('thDark').style.borderColor = themeState.dark ? '#2563eb' : '#e5e7eb';
-    $('thLight').style.borderColor = themeState.dark ? '#e5e7eb' : '#2563eb';
+    $('thDark').style.borderColor = themeState.dark ? 'var(--focus)' : 'var(--line)';
+    $('thLight').style.borderColor = themeState.dark ? 'var(--line)' : 'var(--focus)';
   };
   $('thDark').onclick = () => { themeState.dark = true; syncThemeBtns(); preview(); };
   $('thLight').onclick = () => { themeState.dark = false; syncThemeBtns(); preview(); };
@@ -942,8 +1280,8 @@ function openThemeModal(){
   box.querySelectorAll('input[name=bgMode]').forEach(r => r.onchange = preview);
   box.querySelectorAll('.swatch').forEach(b => b.onclick = () => {
     if ($('customColor')) $('customColor').value = b.dataset.color;
-    box.querySelectorAll('.swatch').forEach(x => x.style.borderColor = '#e5e7eb');
-    b.style.borderColor = '#2563eb';
+    box.querySelectorAll('.swatch').forEach(x => x.style.borderColor = 'var(--line)');
+    b.style.borderColor = 'var(--focus)';
     preview();
   });
   if ($('customColor')) $('customColor').oninput = preview;
@@ -970,7 +1308,7 @@ function openThemeModal(){
   };
   $('clearBg').onclick = () => { themeState.image = ''; $('bgName').textContent = '未选择'; preview(); };
 
-  $('thReset').onclick = () => { themeState.image = ''; applyTheme({ gradient: true, color: '#f3f4f6', pattern: 'none' }); openThemeModal(); };
+  $('thReset').onclick = () => { themeState.image = ''; applyTheme({ gradient: true, color: 'var(--bg)', pattern: 'none' }); openThemeModal(); };
   $('thGo').onclick = async () => {
     const r = await fetch('/api/app-theme', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ theme: themeState }) }).then(x => x.json());
     if (r.ok) { applyTheme(r.theme); $('modal').style.display = 'none'; } else alert('保存失败：' + (r.error || '未知'));
@@ -999,13 +1337,13 @@ async function openBackupModal(){
   ];
   const box = $('modalBox');
   box.innerHTML = `<h3>📦 生成备份</h3>
-    <div style="font-size:12px;color:#6b7280;margin:10px 0 4px">选择要备份的会话：</div>
-    <div style="max-height:32vh;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px;padding:6px 10px">
+    <div style="font-size:12px;color:var(--ink-3);margin:10px 0 4px">选择要备份的会话：</div>
+    <div style="max-height:32vh;overflow-y:auto;border:1px solid var(--line);border-radius:8px;padding:6px 10px">
       <label style="display:block;margin-bottom:6px"><input type="checkbox" id="bkAll" checked> <b>全选</b></label>
       ${list.map(x => `<label style="display:block;padding:2px 0"><input type="checkbox" class="bkRoom" value="${x.id}" checked> ${esc(x.label)}</label>`).join('')}
     </div>
-    <div style="font-size:12px;color:#6b7280;margin:10px 0 4px">备份路径（不存在会自动创建）：</div>
-    <input id="bkDir" value="${esc(def.dir || '')}" style="width:100%;padding:9px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;font-family:inherit">
+    <div style="font-size:12px;color:var(--ink-3);margin:10px 0 4px">备份路径（不存在会自动创建）：</div>
+    <input id="bkDir" value="${esc(def.dir || '')}" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;font-size:13px;font-family:inherit">
     <div id="bkResult" style="font-size:12px;color:#166534;margin-top:8px;word-break:break-all;line-height:1.6"></div>
     <div class="foot"><button class="primary" id="bkGo">开始备份</button></div>`;
   $('modal').style.display = 'flex';
@@ -1026,9 +1364,9 @@ async function openBackupModal(){
 function openImportModal(){
   const box = $('modalBox');
   box.innerHTML = `<h3>📥 导入备份</h3>
-    <div style="font-size:12px;color:#6b7280;margin:10px 0 6px">选择备份文件（圆桌备份-*.json）：</div>
+    <div style="font-size:12px;color:var(--ink-3);margin:10px 0 6px">选择备份文件（圆桌备份-*.json）：</div>
     <input type="file" id="bkFile" accept=".json,application/json" style="font-size:12px">
-    <div id="bkFileInfo" style="font-size:12px;color:#6b7280;margin:8px 0"></div>
+    <div id="bkFileInfo" style="font-size:12px;color:var(--ink-3);margin:8px 0"></div>
     <div id="bkImportArea"></div>`;
   $('modal').style.display = 'flex';
   let backupData = null;
@@ -1041,12 +1379,12 @@ function openImportModal(){
       if (!keys.length) { $('bkFileInfo').textContent = '这个文件里没有会话'; return; }
       $('bkFileInfo').innerHTML = `已读取 <b>${esc(f.name)}</b>，包含 ${keys.length} 个会话`;
       $('bkImportArea').innerHTML = `
-        <div style="font-size:12px;color:#6b7280;margin:8px 0 4px">选择要导入的会话：</div>
-        <div style="max-height:26vh;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px;padding:6px 10px">
-          ${keys.map((k, i) => `<label style="display:block;padding:2px 0"><input type="checkbox" class="impRoom" value="${i}" checked> ${esc(backupData.rooms[k].name)} <span style="color:#9ca3af;font-size:11px">（${(backupData.rooms[k].messages || []).length} 条）</span></label>`).join('')}
+        <div style="font-size:12px;color:var(--ink-3);margin:8px 0 4px">选择要导入的会话：</div>
+        <div style="max-height:26vh;overflow-y:auto;border:1px solid var(--line);border-radius:8px;padding:6px 10px">
+          ${keys.map((k, i) => `<label style="display:block;padding:2px 0"><input type="checkbox" class="impRoom" value="${i}" checked> ${esc(backupData.rooms[k].name)} <span style="color:var(--ink-4);font-size:11px">（${(backupData.rooms[k].messages || []).length} 条）</span></label>`).join('')}
         </div>
-        <div style="font-size:12px;color:#6b7280;margin:10px 0 4px">导入到哪个会话：</div>
-        <select id="impTarget" style="width:100%;padding:9px;border:1px solid #d1d5db;border-radius:8px;font-size:13px">
+        <div style="font-size:12px;color:var(--ink-3);margin:10px 0 4px">导入到哪个会话：</div>
+        <select id="impTarget" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;font-size:13px">
           ${Object.keys(rooms).filter(k => rooms[k]).map(k => `<option value="${k}">群 · ${esc(rooms[k].name)}</option>`).join('')}
           ${M.map(m => `<option value="dm:${m.id}">私聊 · ${esc(m.name)}</option>`).join('')}
           <option value="__new__">＋ 新建群聊（把导入内容放进新群）</option>
@@ -1229,13 +1567,14 @@ es.onmessage = (e) => {
     if (ev.rec.room === active) { if (loading) pendingRows.push(ev.rec); else msgRow(ev.rec); }
     return;
   }
-  if (ev.type === 'status') { states[ev.id] = { down: ev.down, speaking: ev.speaking }; const m = memberById(ev.id); if (m) paint(m); return; }
+  if (ev.type === 'status') { states[ev.id] = { down: ev.down, speaking: ev.speaking }; const m = memberById(ev.id); if (m) paint(m); renderStatusBar(); return; }
+  if (ev.type === 'round') { if (ev.room === active) { roundInfo[active] = { calls: ev.calls, paused: ev.paused, who: ev.who, beat: ev.beat, total: ev.total }; renderStatusBar(); } return; }
   if (ev.type === 'net') { setNet(ev.online); return; }
-  if (ev.type === 'rooms') { rooms = ev.rooms; renderSide(); return; }
+  if (ev.type === 'rooms') { rooms = ev.rooms; renderSide(); renderStatusBar(); return; }
   if (ev.type === 'app') { $('appTitle').textContent = ev.title; document.title = ev.title + ' · 多模型聊天'; return; }
   if (ev.type === 'theme') { applyTheme(ev.theme); return; }
   if (ev.type === 'members') { M = ev.members.filter((m, i, a) => a.findIndex(x => x.id === m.id) === i); renderSide(); return; }
-  if (ev.type === 'cleared') { if (ev.room === active) msgs.innerHTML = ''; delete unread[ev.room]; renderSide(); return; }
+  if (ev.type === 'cleared') { if (ev.room === active) { msgs.innerHTML = ''; renderHomeEmpty(); } delete unread[ev.room]; renderSide(); return; }
   if (ev.type === 'imported') { if (ev.room === active) openRoom(ev.room); return; }
   if (ev.type === 'deleted') {    if (ev.room === active) {
       const firstRow = ev.ids.map(id => document.getElementById(id)).filter(Boolean)[0];
