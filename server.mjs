@@ -689,6 +689,39 @@ async function runTopicPreparation(topic, room) {
   if (topicReady(topic)) addRec({ id: 's' + Date.now() + 'tr', ts: Date.now(), room: topic.roomId, kind: 'system', from: 'system', text: `（独立准备完成：${topic.slots.filter(s => s.status === 'completed').length}/${topic.slots.length} 份。可以揭晓了）`, meta: {} });
 }
 
+// 五段式纪要（结构照 AIROOM 的 minutesInstruction）
+function buildMinutesPrompt(t, done) {
+  const name = (id) => memberById(id)?.name || id;
+  const cut = (s, n) => (s.length > n ? s.slice(0, n) + '…（已截断）' : s);
+  const pieces = done.map(s => `【${name(s.memberId)}】\n${cut(s.text || '', 2500)}`).join('\n\n');
+  const sel = done.find(s => s.memberId === t.selectedSlotId);
+  const talk = log.filter(r => r.room === t.roomId && r.kind === 'member' && !r.meta?.conclusion && !r.meta?.revealed)
+    .slice(-12).map(r => `${r.from}：${cut(r.text || '', 300)}`).join('\n');
+  return `这是圆桌议题「${t.title}」（类型：${KIND_NAME[t.kind] || t.kind}）的整理任务。请只用中文写纪要。
+
+材料：
+${cut(t.material?.text || '', 1500)}
+
+各成员独立产出的版本（公开前互不可见）：
+${pieces}
+
+${sel ? `用户已选用：${name(sel.memberId)} 的版本。` : '用户尚未选稿。'}
+${talk ? `\n揭晓之后的讨论记录：\n${talk}` : ''}
+
+请严格按下面五段输出，每段必须有标题：
+## 共识
+## 分歧与各方理由
+## 少数意见
+## 未核实事项
+## 建议
+
+要求：
+- 没有明确记录的内容写"未形成"或"未记录"，不要编。
+- 不能把某一个人的建议或多数意见写成"全员共识"。
+- 用户已选用的版本以记录为准，不能自行改变或替换。
+- 不要出现内部编号、字段名、英文缩写。
+- 直接给纪要正文，不要开场白和结尾客套。`;
+}
 // ---------- HTTP ----------
 const HTML = readFileSync(join(ROOT, 'public', 'index.html'));
 const json = (res, obj, code = 200) => { res.writeHead(code, { 'content-type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(obj)); };
@@ -996,7 +1029,82 @@ const server = http.createServer((req, res) => {
     });
     return;
   }
-  // 暂停接话：当前这句说完就停起新的，但这一轮不作废（和「结束讨论」区分开）
+  if (u.pathname === '/api/topic/select' && req.method === 'POST') {
+    let body = ''; req.on('data', c => body += c);
+    req.on('end', () => {
+      try {
+        const { topicId, slotId } = JSON.parse(body);
+        const t2 = topics[topicId];
+        if (!t2) return json(res, { ok: false, error: '议题不存在' });
+        if (!t2.revealedAt) return json(res, { ok: false, error: '还没揭晓，不能选用' });
+        const slot = t2.slots.find(s => s.memberId === slotId);
+        if (!slot || slot.status !== 'completed') return json(res, { ok: false, error: '这份稿子不可选' });
+        t2.selectedSlotId = slotId; t2.updatedAt = Date.now(); saveTopics();
+        const mb = memberById(slotId);
+        addRec({ id: 's' + Date.now() + 'sel', ts: Date.now(), room: t2.roomId, kind: 'system', from: 'system', text: `（已采用 ${mb?.name || slotId} 的版本。仅是选择标记，不代表验收通过或全员共识）`, meta: { noHist: true } });
+        broadcast({ type: 'topic', topic: publicTopic(t2) });
+        json(res, { ok: true, topic: publicTopic(t2) });
+      } catch (e) { json(res, { ok: false, error: e.message }); }
+    });
+    return;
+  }  if (u.pathname === '/api/topic/conclude' && req.method === 'POST') {
+    let body = ''; req.on('data', c => body += c);
+    req.on('end', () => {
+      try {
+        const { topicId } = JSON.parse(body);
+        const t3 = topics[topicId];
+        if (!t3) return json(res, { ok: false, error: '议题不存在' });
+        if (!t3.revealedAt) return json(res, { ok: false, error: '还没揭晓' });
+        if (t3.status === 'summarizing') return json(res, { ok: false, error: '正在整理中' });
+        if (['confirmed', 'ended'].includes(t3.status)) return json(res, { ok: false, error: '议题已结束' });
+        const done = t3.slots.filter(s => s.status === 'completed');
+        if (!done.length) return json(res, { ok: false, error: '没有可整理的稿子' });
+        t3.status = 'summarizing'; t3.updatedAt = Date.now(); saveTopics();
+        broadcast({ type: 'topic', topic: publicTopic(t3) });
+        json(res, { ok: true, topic: publicTopic(t3) });
+        const lead = memberById(t3.leadMemberId) || memberById(done[0].memberId);
+        const room = roomInfo(t3.roomId);
+        (async () => {
+          try {
+            const text = await askOnce(lead, room, '', buildMinutesPrompt(t3, done));
+            t3.conclusion = { text, at: Date.now(), by: lead.name };
+            t3.status = 'conclusion'; t3.updatedAt = Date.now(); saveTopics();
+            addRec({ id: 'm' + Date.now() + 'cc', ts: Date.now(), room: t3.roomId, kind: 'member', from: lead.name, text, meta: { topicId: t3.id, conclusion: true } });
+            addRec({ id: 's' + Date.now() + 'cc', ts: Date.now(), room: t3.roomId, kind: 'system', from: 'system', text: '（纪要已整理，等你确认）', meta: { noHist: true } });
+            broadcast({ type: 'topic', topic: publicTopic(t3) });
+          } catch (e) {
+            t3.status = 'discussing'; t3.updatedAt = Date.now(); saveTopics();
+            addRec({ id: 's' + Date.now() + 'ce', ts: Date.now(), room: t3.roomId, kind: 'system', from: 'system', text: `（整理结论失败：${e.message}）`, meta: {} });
+            broadcast({ type: 'topic', topic: publicTopic(t3) });
+          }
+        })();
+      } catch (e) { json(res, { ok: false, error: e.message }); }
+    });
+    return;
+  }
+  if (u.pathname === '/api/topic/confirm' && req.method === 'POST') {
+    let body = ''; req.on('data', c => body += c);
+    req.on('end', () => {
+      try {
+        const { topicId, action } = JSON.parse(body);
+        const t4 = topics[topicId];
+        if (!t4) return json(res, { ok: false, error: '议题不存在' });
+        const note = (s) => addRec({ id: 's' + Date.now() + 'cf', ts: Date.now(), room: t4.roomId, kind: 'system', from: 'system', text: s, meta: { noHist: true } });
+        if (action === 'confirm') {
+          if (!t4.conclusion) return json(res, { ok: false, error: '还没有纪要' });
+          t4.status = 'confirmed'; note('（结论已确认）');
+        } else if (action === 'reopen') {
+          t4.status = 'discussing'; t4.conclusion = null; note('（要求再议一轮，可以继续说）');
+        } else if (action === 'end') {
+          t4.status = 'ended'; note('（议题已结束，记录保留）');
+        } else return json(res, { ok: false, error: '未知操作' });
+        t4.updatedAt = Date.now(); saveTopics();
+        broadcast({ type: 'topic', topic: publicTopic(t4) });
+        json(res, { ok: true, topic: publicTopic(t4) });
+      } catch (e) { json(res, { ok: false, error: e.message }); }
+    });
+    return;
+  }  // 暂停接话：当前这句说完就停起新的，但这一轮不作废（和「结束讨论」区分开）
   if (u.pathname === '/api/room-pause' && req.method === 'POST') {
     let body = ''; req.on('data', c => body += c);
     req.on('end', () => {

@@ -359,6 +359,27 @@
   .home-wrap .hcard span { font-size:11px; color:var(--ink-3); }
   .home-wrap .hfoot { margin-top:28px; font-size:11px; color:var(--ink-3); display:flex; gap:6px; align-items:center; justify-content:center; }
   .home-wrap .dot-ok { width:7px; height:7px; border-radius:50%; background:var(--ok); display:inline-block; }
+/* 议题操作栏 + 并排对比（P2） */
+  #main { position:relative; }
+  #topicBar { display:none; gap:10px; align-items:center; padding:8px 16px; background:var(--surface-2); border-bottom:1px solid var(--line); font-size:12px; color:var(--ink-3); }
+  #topicBar button { font-size:12px; padding:5px 12px; border-radius:var(--r-sm); border:1px solid var(--line); background:var(--surface); color:var(--ink-2); cursor:pointer; }
+  #topicBar button:hover { background:var(--paper); border-color:var(--line-strong); }
+  #topicBar .tb-sel b { color:var(--ink); }
+  #compareView { position:absolute; inset:0; background:var(--bg); z-index:20; display:flex; flex-direction:column; }
+  .cmp-head { display:flex; align-items:center; gap:10px; padding:12px 18px; border-bottom:1px solid var(--line); background:var(--surface); }
+  .cmp-head b { font-size:14px; color:var(--ink); }
+  .cmp-sub { font-size:12px; color:var(--ink-3); }
+  #cmpClose { margin-left:auto; border:1px solid var(--line); background:var(--surface); border-radius:var(--r-sm); width:28px; height:28px; cursor:pointer; color:var(--ink-2); }
+  .cmp-body { flex:1; display:flex; gap:14px; padding:16px; overflow:auto; }
+  .cmp-col { flex:1; min-width:260px; display:flex; flex-direction:column; background:var(--surface); border:1px solid var(--line); border-radius:var(--r-lg); box-shadow:var(--shadow-sm); padding:14px; }
+  .cmp-col.picked { border-color:#e8c98d; box-shadow:0 0 0 3px rgb(224 162 78 / 14%), var(--shadow-sm); }
+  .cmp-who { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+  .cmp-who b { font-size:13px; color:var(--ink); }
+  .cmp-badge { margin-left:auto; font-size:11px; color:#8a5a13; background:var(--lamp-soft); border:1px solid #e8c98d; border-radius:999px; padding:2px 8px; }
+  .cmp-text { flex:1; overflow:auto; font-size:13px; line-height:1.75; color:var(--ink-2); white-space:pre-wrap; }
+  .cmp-pick { margin-top:12px; font-size:12px; padding:8px 0; border-radius:var(--r-sm); border:1px solid var(--brand); background:var(--brand); color:var(--brand-ink); cursor:pointer; }
+  .cmp-pick:disabled { background:var(--surface-2); color:var(--ink-3); border-color:var(--line); cursor:default; }
+#topicBar .primary { background:var(--brand); border-color:var(--brand); color:var(--brand-ink); }
 </style>
 </head>
 <body>
@@ -389,6 +410,7 @@
   </div>
   <div id="main">
     <div id="homeView" style="display:none"></div>
+    <div id="topicBar" style="display:none"></div>
     <div id="head">
       <div class="title" id="title">—</div>
       <div class="peers" id="peers"></div>
@@ -452,7 +474,7 @@ let M = [], rooms = {}, states = {}, netOnline = true, active = 'free', colorMap
 let unread = {};   // 未读条数：{ 'dm:kimi': 2, free: 3 } —— 对应微信的红点/角标
 let roomSettings = {}, histDefault = 6000;   // 每个会话独立设置（上下文长度）
 let topics = {};                              // 议题：id -> topic（来自 /api/state.topics 与 SSE topic 事件）
-const TOPIC_STATUS = { preparing:'准备材料', reviewing:'各自准备中', discussing:'讨论中', conclusion:'待确认结论', confirmed:'结论已确认', ended:'已结束', blocked:'需要核对' };
+const TOPIC_STATUS = { preparing:'准备材料', reviewing:'各自准备中', discussing:'讨论中', summarizing:'整理结论中', conclusion:'待确认结论', confirmed:'结论已确认', ended:'已结束', blocked:'需要核对' };
 const KIND_LABEL = { review:'评审', candidates:'比稿', proposals:'方案比较' };
 const SLOT_LABEL = { queued:'准备中', running:'正在准备…', completed:'已交稿', skipped:'已跳过', blocked:'出错' };
 const topicByRoom = (rid) => Object.values(topics).find(t => t.roomId === rid) || null;
@@ -781,6 +803,114 @@ function renderStatusBar(){
     return `<button class="pill${on ? ' on' : ''}" data-pid="${m.id}">${esc(m.name)} ${on ? '✓' : '○'}</button>`;
   }).join('');
   document.querySelectorAll('#modeTabs button').forEach(b => b.classList.toggle('on', b.dataset.mode === mode));
+  renderTopicBar(tp);
+}
+// 议题操作栏：并排对比 / 已采用提示（P2）
+function renderTopicBar(tp){
+  const bar = $('topicBar'); if (!bar) return;
+  if (!tp || !tp.revealedAt) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
+  const sel = tp.slots.find(s => s.memberId === tp.selectedSlotId);
+  const selText = sel ? `<span class="tb-sel">已采用：<b>${esc((memberById(sel.memberId) || {}).name || sel.memberId)}</b></span>` : `<span class="tb-hint">还没选稿</span>`;
+  bar.style.display = 'flex';
+  if (tp.status === 'summarizing') {
+    bar.innerHTML = `<span class="tb-hint">正在整理纪要，稍等…</span>`;
+  } else if (tp.status === 'conclusion') {
+    bar.innerHTML = `<button id="tbConfirm" class="primary">✓ 确认结论</button><button id="tbReopen">↺ 再议一轮</button><button id="tbEnd">⏹ 结束议题</button><button id="tbExport">⧉ 复制给 agent</button>${selText}`;
+    $('tbConfirm').onclick = () => topicAct(tp, 'confirm');
+    $('tbExport').onclick = () => openTopicExport(tp);
+    $('tbReopen').onclick = () => topicAct(tp, 'reopen');
+    $('tbEnd').onclick = () => topicAct(tp, 'end');
+  } else if (tp.status === 'confirmed' || tp.status === 'ended') {
+    bar.innerHTML = `<span class="tb-sel"><b>${TOPIC_STATUS[tp.status]}</b></span><button id="tbExport">⧉ 复制给 agent</button>${selText}`;
+    $('tbExport').onclick = () => openTopicExport(tp);
+  } else if (tp.status === 'discussing') {
+    bar.innerHTML = `<button id="tbCompare">▥ 并排对比</button><button id="tbConclude">📝 整理结论</button>${selText}`;
+    $('tbCompare').onclick = () => renderCompare(tp);
+    $('tbConclude').onclick = async () => {
+      const b = $('tbConclude'); b.disabled = true; b.textContent = '整理中…';
+      const r = await apiPost('/api/topic/conclude', { topicId: tp.id });
+      if (!r.ok) { alert('整理失败：' + (r.error || '未知')); b.disabled = false; b.textContent = '📝 整理结论'; return; }
+      topics[r.topic.id] = r.topic; renderStatusBar(); renderTopicBar(r.topic);
+    };
+  } else {
+    bar.innerHTML = `<span class="tb-hint">${TOPIC_STATUS[tp.status] || tp.status}</span>`;
+  }
+}
+async function topicAct(tp, action) {
+  const r = await apiPost('/api/topic/confirm', { topicId: tp.id, action });
+  if (!r.ok) { alert('操作失败：' + (r.error || '未知')); return; }
+  topics[r.topic.id] = r.topic;
+  renderStatusBar(); renderTopicBar(r.topic);
+}
+// 导出成 markdown：标题 + 材料 + 采用的版本 + 纪要（可直接粘给 Claude Code / DSH）
+function topicMarkdown(tp) {
+  const name = (id) => (memberById(id) || {}).name || id;
+  const sel = tp.slots.find(s => s.memberId === tp.selectedSlotId);
+  const d = new Date(tp.updatedAt || Date.now());
+  const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const out = [];
+  out.push(`# 圆桌议题：${tp.title}`);
+  out.push(`类型：${KIND_LABEL[tp.kind] || tp.kind} ｜ 状态：${TOPIC_STATUS[tp.status] || tp.status} ｜ ${stamp}`);
+  if (tp.material?.text) out.push(`\n## 议题材料\n${tp.material.text}`);
+  if (sel) out.push(`\n## 采用的版本（${name(sel.memberId)}）\n${sel.text || ''}`);
+  else out.push(`\n## 采用的版本\n（未选稿）`);
+  if (tp.conclusion?.text) out.push(`\n## 结论（纪要）\n${tp.conclusion.text}`);
+  out.push(`\n---\n由「圆桌」生成 · 这份内容可以直接粘给 Claude Code / DSH 当作任务材料。`);
+  return out.join('\n');
+}
+function openTopicExport(tp) {
+  const box = $('modalBox');
+  const md = topicMarkdown(tp);
+  box.innerHTML = `<h3>⧉ 复制给 agent</h3>
+    <div style="font-size:11px;color:var(--ink-3);margin:6px 0 8px;line-height:1.7">下面是可以直接粘给 Claude Code / DSH 的材料，想改就改，改完再复制。</div>
+    <textarea id="expText" rows="16" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:12px;line-height:1.7;font-family:ui-monospace,Consolas,monospace;resize:vertical">${esc(md)}</textarea>
+    <div class="foot"><button id="expClose">关闭</button><button class="primary" id="expCopy">复制</button></div>`;
+  $('modal').style.display = 'flex';
+  $('expClose').onclick = () => { $('modal').style.display = 'none'; };
+  $('expCopy').onclick = async () => {
+    const txt = $('expText').value;
+    let ok = false;
+    try { await navigator.clipboard.writeText(txt); ok = true; } catch (e) { ok = false; }
+    if (!ok) {                                          // 老办法兜底
+      const ta = $('expText'); ta.select(); document.execCommand('copy');
+      ok = true;
+    }
+    const b = $('expCopy'); b.textContent = ok ? '已复制 ✓' : '复制失败';
+    setTimeout(() => { b.textContent = '复制'; }, 1500);
+  };
+}
+// 并排对比：一人一列，比完直接用一份
+function renderCompare(tp){
+  const old = document.getElementById('compareView');
+  if (old) old.remove();
+  const cols = tp.slots.filter(s => s.status === 'completed');
+  const d = document.createElement('div');
+  d.id = 'compareView';
+  d.innerHTML = `<div class="cmp-head"><b>并排对比 · ${esc(tp.title)}</b>
+      <span class="cmp-sub">${KIND_LABEL[tp.kind] || ''} · ${cols.length} 份</span>
+      <button id="cmpClose">✕</button></div>
+    <div class="cmp-body">${cols.map(s => {
+      const mb = memberById(s.memberId) || { name: s.memberId, provider: '' };
+      const picked = tp.selectedSlotId === s.memberId;
+      return `<div class="cmp-col${picked ? ' picked' : ''}">
+        <div class="cmp-who">${avaM(mb)}<b>${esc(mb.name)}</b>${picked ? '<span class="cmp-badge">已采用</span>' : ''}</div>
+        <div class="cmp-text">${esc(s.text || '')}</div>
+        <button class="cmp-pick" data-mid="${s.memberId}" ${picked ? 'disabled' : ''}>${picked ? '已采用' : '采用这份'}</button>
+      </div>`;
+    }).join('')}</div>`;
+  $('main').appendChild(d);
+  $('cmpClose').onclick = () => d.remove();
+  d.querySelectorAll('.cmp-pick').forEach(b => {
+    b.onclick = async () => {
+      b.disabled = true; b.textContent = '采用中…';
+      const r = await apiPost('/api/topic/select', { topicId: tp.id, slotId: b.dataset.mid });
+      if (!r.ok) { alert('采用失败：' + (r.error || '未知')); b.disabled = false; b.textContent = '采用这份'; return; }
+      topics[r.topic.id] = r.topic;
+      d.remove();
+      renderStatusBar();
+      renderTopicBar(r.topic);
+    };
+  });
 }
 $('sbPause').onclick = async () => {
   if (active.startsWith('dm:')) return;
