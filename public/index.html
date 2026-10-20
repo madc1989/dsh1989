@@ -494,12 +494,37 @@
   #memberPlusMenu div { padding:8px 10px; font-size:13px; border-radius:7px; cursor:pointer; color:var(--ink-2); }
   #memberPlusMenu div:hover { background:var(--paper); }
   .sec-row { position:relative; }
+#statusbar { position:relative; }
+  .pill-add { font-size:11px; padding:3px 9px; border-radius:999px; border:1px dashed var(--line-strong); background:transparent; color:var(--ink-3); cursor:pointer; }
+  .pill-add:hover { background:var(--paper); color:var(--ink); border-style:solid; }
+  .add-pop { position:absolute; z-index:48; left:16px; top:calc(100% - 4px); min-width:200px; max-height:260px; overflow:auto; background:var(--surface); border:1px solid var(--line); border-radius:var(--r-md); box-shadow:var(--shadow); padding:6px; }
+  .add-pop .ap-title { font-size:11px; color:var(--ink-3); padding:4px 8px 6px; }
+  .add-pop .ap-row { display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:7px; cursor:pointer; }
+  .add-pop .ap-row:hover { background:var(--paper); }
+  .add-pop .ap-row .ava { width:24px; height:24px; font-size:11px; }
+  .add-pop .ap-t b { display:block; font-size:12px; color:var(--ink); }
+  .add-pop .ap-t span { font-size:10px; color:var(--ink-3); }
+.pill-del { margin-left:2px; }
+  .pill-del:hover { background:#fdeceb; color:#a83a2c; border-color:#e8bdb6; }
+/* 群头像：成员四宫格 */
+  .ava.gava { position:relative; display:block !important; overflow:hidden; border-radius:50%; padding:0; background:var(--line); }
+  .ava.gava i { position:absolute; width:50%; height:50%; display:flex; align-items:center; justify-content:center;
+                font-style:normal; font-size:9px; font-weight:600; color:#3a2c24;
+                background-size:cover; background-position:center 18%; background-repeat:no-repeat; }
+  .ava.gava i:nth-child(1) { left:0; top:0; }
+  .ava.gava i:nth-child(2) { right:0; top:0; }
+  .ava.gava i:nth-child(3) { left:0; bottom:0; }
+  .ava.gava i:nth-child(4) { right:0; bottom:0; }
+  .ava.gava.one i { width:100%; height:100%; left:0; top:0; }
+  .ava.gava.two i { width:100%; height:50%; }
+  .ava.gava.two i:nth-child(1) { left:0; top:0; }
+  .ava.gava.two i:nth-child(2) { left:0; top:50%; }
 </style>
 </head>
 <body>
   <div id="side">
     <div id="sideHead"><b id="appTitle" title="点击重命名">圆桌</b><button id="plusBtn" title="新建 / 添加">＋</button></div>
-    <div id="plusMenu">
+    <div id="plusMenu" data-popover>
       <div data-act="group">💬 新建群聊</div>
       <div data-act="topic">🧭 开议题</div>
       <div data-act="search">🔍 搜索</div>
@@ -508,7 +533,7 @@
       <div class="sec">房间</div>
       <div id="groups"></div>
       <div class="sec sec-row">成员<button id="memberPlus" title="添加 / 删除成员">＋</button>
-        <div id="memberPlusMenu">
+        <div id="memberPlusMenu" data-popover>
           <div data-mact="add">🤖 添加模型</div>
           <div data-mact="del">🚫 删除模型</div>
         </div>
@@ -517,7 +542,7 @@
     </div>
     <div id="sideFoot">
       <button id="setBtn">⚙ 设置</button>
-      <div id="setMenu">
+      <div id="setMenu" data-popover>
         <div data-sact="backup">📦 生成备份</div>
         <div data-sact="import">📥 导入备份</div>
         <div data-sact="rename">✏️ 重命名</div>
@@ -533,8 +558,7 @@
       <div class="peers" id="peers"></div>
       <div id="netTag">🌐 在线</div>
       <button id="chatPlus">＋</button>
-      <div id="chatMenu">
-        <div id="cmMembers" data-cact="members">👥 群成员</div>
+      <div id="chatMenu" data-popover>
         <div data-cact="forward">↪ 转发对话</div>
         <div data-cact="delete">🗑 删除对话</div>
         <div data-cact="settings">⚙ 设置</div>
@@ -558,7 +582,7 @@
     <div id="selbar"><span>已选 <b id="selcount">0</b> 条</span><button id="doFwd">转发…</button><button id="cancelSel">取消</button></div>
     <div id="pendingWrap"></div>
     <div id="inputbar">
-      <div id="attachMenu">
+      <div id="attachMenu" data-popover>
         <div data-a="emoji">😊 表情</div>
         <div data-a="image">🖼 图片</div>
         <div data-a="video">🎬 视频</div>
@@ -584,7 +608,7 @@
     </div>
   </div>
   <div id="menu"></div>
-  <div id="roomMenu"></div>
+  <div id="roomMenu" data-popover></div>
   <div id="modal"><div class="box" id="modalBox"></div></div>
 <script>
 const COLORS = ['#fde68a','#fbcfe8','#a7f3d0','#ddd6fe','#bae6fd','#fed7aa'];
@@ -604,6 +628,15 @@ let loading = false, pendingRows = [], loadSeq = 0;   // 切房间时的加载�
 const colorOf = (n) => colorMap[n] ??= COLORS[Object.keys(colorMap).length % COLORS.length];
 const hhmm = (ts) => new Date(ts || Date.now()).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
 const esc = (s) => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+// 群头像：把前 4 位成员的头像拼成一张（微信那种四宫格），比一个"群"字好看
+function roomAva(r){
+  const mem = (r.members || []).map(memberById).filter(Boolean).slice(0, 4);
+  if (!mem.length) return `<div class="ava gava"><i style="background:var(--line-strong)">群</i></div>`;
+  const cell = (m) => m.avatar
+    ? `<i style="background-image:url('${esc(m.avatar)}')"></i>`
+    : `<i style="background:${m.color || colorOf(m.name)}">${esc(String(m.emoji || m.name || '?')[0])}</i>`;
+  return `<div class="ava gava${mem.length === 1 ? ' one' : ''}">${mem.map(cell).join('')}</div>`;
+}
 // 消息里的头像：能按名字找到成员就用他那张头像，否则退回首字母
 const ava = (name) => {
   const mb = M.find(x => x.name === name);
@@ -652,7 +685,7 @@ function renderSide(){
     const r = rooms[gid];
     const d = document.createElement('div');
     d.className = 'item' + (active === gid ? ' active' : '');
-    d.innerHTML = `<div class="ava" style="background:#dbeafe">群</div><div class="t"><b>${r.pinned ? '📌' : ''}${esc(r.name)}</b><span>${r.members.length} 位成员</span></div><button class="more" title="更多">⋯</button>`;
+    d.innerHTML = `${roomAva(r)}<div class="t"><b>${r.pinned ? '📌' : ''}${esc(r.name)}</b><span>${r.members.length} 位成员</span></div><button class="more" title="更多">⋯</button>`;
     if (unread[gid]) d.insertAdjacentHTML('beforeend', `<span class="badge">${unread[gid] > 99 ? '99+' : unread[gid]}</span>`);
     d.onclick = () => openRoom(gid);
     d.querySelector('.more').onclick = (e) => { e.stopPropagation(); openRoomMenu(e, gid); };
@@ -675,7 +708,7 @@ function renderSide(){
       d.querySelector('.ava').insertAdjacentHTML('beforeend', '<i class="unread"></i>');
       d.insertAdjacentHTML('beforeend', `<span class="badge">${n > 99 ? '99+' : n}</span>`);
     }
-    d.onclick = () => openMemberPop(m, d);
+    d.onclick = (e) => { e.stopPropagation(); openMemberPop(m, d); };
     $('contacts').appendChild(d);
   }
 }
@@ -717,7 +750,7 @@ async function openRoom(id){
   const list = roomMembers(id);
   $('title').textContent = roomName(id);
   $('peers').textContent = id.startsWith('dm:') ? (list[0]?.model ?? '') : list.map(m => m.name).join('、');
-  $('cmMembers').style.display = id.startsWith('dm:') ? 'none' : '';   // 群成员项只在群里出现
+   // 群成员项只在群里出现
   renderSide();
   const token = ++loadSeq;
   loading = true; pendingRows = [];
@@ -851,7 +884,7 @@ function renderHome(){
   </div>`;
   $('hNewGroup').onclick = () => openNewGroup();
   $('hNewTopic').onclick = () => openTopicDialog();
-  hv.querySelectorAll('.hrcard[data-dm]').forEach(c => { c.onclick = () => openMemberPop(memberById(c.dataset.dm), c); });
+  hv.querySelectorAll('.hrcard[data-dm]').forEach(c => { c.onclick = (e) => { e.stopPropagation(); openMemberPop(memberById(c.dataset.dm), c); }; });
   hv.querySelectorAll('.hrow[data-room]').forEach(c => { c.onclick = () => openRoom(c.dataset.room); });
 }
 // 空房间的欢迎屏：问候 → 大标题 → 说明 → 两个动作 → 成员卡（点谁进私聊）
@@ -883,10 +916,21 @@ function setNet(online){
   $('netTag').textContent = online ? '🌐 在线' : '🔌 离线（仅本机8B）';
   $('netTag').className = online ? '' : 'off';
   M.forEach(paint); renderSide();
+  if (typeof renderStatusBar === 'function') renderStatusBar();   // 上方席位卡/在场胶囊也要跟着变灰
 }
 
 // ---------- 成员增删（群聊弹窗仍用它） ----------
-document.addEventListener('click', () => { $('plusMenu').style.display = 'none'; $('chatMenu').style.display = 'none'; $('roomMenu').style.display = 'none'; $('attachMenu').style.display = 'none'; $('emojiPanel').classList.remove('on'); closeMention(); });
+// 点空白处：统一关掉所有浮层。
+// 规则：带 data-popover 的静态菜单设 display:none；动态建的直接移除；表情/@ 面板各有关法。
+// 新增浮层只要打上 data-popover 就会自动被收进去，不用再改这里。
+function closeAllPopovers(){
+  document.querySelectorAll('[data-popover]').forEach(el => { el.style.display = 'none'; });
+  const ap = document.getElementById('addMemberPop'); if (ap) ap.remove();
+  if (typeof closeMemberPop === 'function') closeMemberPop();
+  const ep = document.getElementById('emojiPanel'); if (ep) ep.classList.remove('on');
+  if (typeof closeMention === 'function') closeMention();
+}
+document.addEventListener('click', closeAllPopovers);
 async function setRoom(room, memberId, op){
   const r = await fetch('/api/rooms', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ room, memberId, op }) }).then(x => x.json());
   rooms = r.rooms; renderSide();
@@ -988,9 +1032,62 @@ function renderStatusBar(){
   $('sbPills').innerHTML = tp ? '' : list.map(m => {
     const on = pres[m.id] !== false;
     return `<button class="pill${on ? ' on' : ''}" data-pid="${m.id}">${esc(m.name)} ${on ? '✓' : '○'}</button>`;
-  }).join('');
+  }).join('') + `<button class="pill-add" id="sbAddMember" title="把成员加进这个群">＋</button>` +
+                `<button class="pill-add pill-del" id="sbDelMember" title="把成员移出这个群">－</button>`;
+  const _add = $('sbAddMember');
+  if (_add) _add.onclick = (e) => { e.stopPropagation(); openAddToRoom(); };
+  const _del = $('sbDelMember');
+  if (_del) _del.onclick = (e) => { e.stopPropagation(); openRemoveFromRoom(); };
   document.querySelectorAll('#modeTabs button').forEach(b => b.classList.toggle('on', b.dataset.mode === mode));
   renderTopicBar(tp);
+}
+// 在场胶囊后面的 －：把群里的成员移出去
+function openRemoveFromRoom(){
+  const r = rooms[active];
+  if (!r) return;
+  const old = document.getElementById('addMemberPop');
+  if (old) old.remove();
+  const mem = (r.members || []).map(memberById).filter(Boolean);
+  if (mem.length <= 1) { alert('群里至少得留一个人'); return; }
+  const d = document.createElement('div');
+  d.id = 'addMemberPop';
+  d.className = 'add-pop';
+  d.innerHTML = `<div class="ap-title">移出「${esc(r.name)}」</div>` +
+    mem.map(m => `<div class="ap-row" data-mid="${m.id}">${avaM(m)}<div class="ap-t"><b>${esc(m.name)}</b><span>${esc(m.model)}</span></div></div>`).join('');
+  $('statusbar').appendChild(d);
+  d.onclick = async (e) => {
+    e.stopPropagation();
+    const row = e.target.closest('.ap-row');
+    if (!row) return;
+    const m = memberById(row.dataset.mid);
+    if (!confirm(`把「${m ? m.name : ''}」移出这个群？`)) return;
+    const res = await fetch('/api/rooms', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ room: active, memberId: row.dataset.mid, op: 'remove' }) }).then(x => x.json());
+    d.remove();
+    if (res.rooms) { rooms = res.rooms; renderSide(); renderStatusBar(); }
+  };
+}
+// 在场胶囊后面的 ＋：把还没进群的人加进来
+function openAddToRoom(){
+  const r = rooms[active];
+  if (!r) return;
+  const old = document.getElementById('addMemberPop');
+  if (old) old.remove();
+  const cands = M.filter(m => !(r.members || []).includes(m.id));
+  if (!cands.length) { alert('所有成员都已经在这个群里了'); return; }
+  const d = document.createElement('div');
+  d.id = 'addMemberPop';
+  d.className = 'add-pop';
+  d.innerHTML = `<div class="ap-title">加入「${esc(r.name)}」</div>` +
+    cands.map(m => `<div class="ap-row" data-mid="${m.id}">${avaM(m)}<div class="ap-t"><b>${esc(m.name)}</b><span>${esc(m.model)}</span></div></div>`).join('');
+  $('statusbar').appendChild(d);
+  d.onclick = async (e) => {
+    e.stopPropagation();
+    const row = e.target.closest('.ap-row');
+    if (!row) return;
+    const res = await fetch('/api/rooms', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ room: active, memberId: row.dataset.mid, op: 'add' }) }).then(x => x.json());
+    d.remove();
+    if (res.rooms) { rooms = res.rooms; renderSide(); renderStatusBar(); }
+  };
 }
 // 议题操作栏：并排对比 / 已采用提示（P2）
 function renderTopicBar(tp){
@@ -1258,19 +1355,12 @@ function openTopicDialog(){
     <textarea id="tpMaterial" rows="5" placeholder="把要评审的文案、要写的题目、要比的方案要求贴进来…" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical"></textarea>
     ${lab('参加成员（勾选）')}
     <div style="max-height:140px;overflow:auto">${M.map(m => `<label style="display:flex;align-items:center;gap:8px;padding:4px"><input type="checkbox" class="tpMem" value="${m.id}" checked> ${esc(m.name)} <span style="color:var(--ink-4);font-size:11px">${esc(m.model)}</span></label>`).join('')}</div>
-    <div id="tpChooserWrap">
-      ${lab('选稿方式')}
-      <select id="tpChooser" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;font-size:13px">
-        <option value="user">由我并排比较后选择</option>
-        <option value="synthesizer">由汇总成员综合成新一版</option>
-      </select>
-    </div>
+
     ${lab('汇总成员')}
     <select id="tpLead" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;font-size:13px">${M.map(m => `<option value="${m.id}">${esc(m.name)}</option>`).join('')}</select>
     <div class="foot"><button id="tpCancel">取消</button><button class="primary" id="tpGo">开始准备</button></div>`;
   $('modal').style.display = 'flex';
-  const syncKind = () => { $('tpChooserWrap').style.display = $('tpKind').value === 'review' ? 'none' : ''; };
-  $('tpKind').onchange = syncKind; syncKind();
+
   $('tpCancel').onclick = () => { $('modal').style.display = 'none'; };
   $('tpGo').onclick = async () => {
     const memberIds = [...box.querySelectorAll('.tpMem:checked')].map(i => i.value);
@@ -1280,7 +1370,7 @@ function openTopicDialog(){
     const btn = $('tpGo'); btn.disabled = true; btn.textContent = '创建中…';
     const r = await apiPost('/api/topic/open', {
       title: $('tpTitle').value.trim(), kind: $('tpKind').value, material,
-      memberIds, leadMemberId: $('tpLead').value, chooser: $('tpChooser').value,
+      memberIds, leadMemberId: $('tpLead').value, chooser: 'user',
     });
     if (!r.ok) { alert('创建失败：' + (r.error || '未知')); btn.disabled = false; btn.textContent = '开始准备'; return; }
     topics[r.topic.id] = r.topic;

@@ -1,5 +1,5 @@
 // 圆桌 server.mjs v3 -- 微信式多模型聊天：两个群（工作/自由）+ 每个成员的一对一私聊
-// 运行: <DSH node> 圆桌/server.mjs [--port 3000] [--max-rounds 6]
+// 运行: <DSH node> 圆桌/server.mjs [--port 3000] [--host 127.0.0.1] [--max-rounds 6]
 // 凭据复用 ~/.dsh/.credentials.yaml；本机 8B 走 127.0.0.1，断网仍可用。
 
 import http from 'node:http';
@@ -13,6 +13,9 @@ import { spawnSync } from 'node:child_process';
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const arg = (n, d) => { const i = process.argv.indexOf(n); return i > 0 ? process.argv[i + 1] : d; };
 const PORT = Number(arg('--port', process.env.PORT || 3000));
+// 默认只监听本机：局域网上别人打开 IP:端口 就能读你的聊天、花你的额度。
+// 确实要手机访问时显式开：--host 0.0.0.0
+const HOST = arg('--host', process.env.RT_HOST || '127.0.0.1');
 const MAX_ROUNDS = Number(arg('--max-rounds', 6));
 const HIST_CHARS = 6000;   // 默认窗口预算；每个会话可在界面里单独覆盖
 const DATA = join(ROOT, 'data');
@@ -323,7 +326,7 @@ const stateOf = (id) => mstate[id] ??= { fails: 0, down: false, lastFail: 0, spe
 const emitStatus = (mb) => broadcast({ type: 'status', id: mb.id, name: mb.name, ...stateOf(mb.id) });
 const noteDown = (mb) => { const st = stateOf(mb.id); return st.down && (Date.now() - st.lastFail < DOWN_COOLDOWN); };
 
-const NET_TTL = 30_000;
+const NET_TTL = 12_000;
 const NET_PROBE_URL = process.env.NET_PROBE_URL || 'https://api.deepseek.com';
 let netOnline = true, netCheckedAt = 0, netProbing = null;
 const isCloud = (mb) => mb.provider !== LOCAL_PROVIDER;
@@ -344,6 +347,9 @@ async function refreshNet() {
   })();
   try { return await netProbing; } finally { netProbing = null; }
 }
+// 后台每 10 秒探一次：断网/恢复时自己广播，不用等用户发消息才更新
+setInterval(() => { refreshNet().catch(() => {}); }, 10_000);
+setTimeout(() => { refreshNet().catch(() => {}); }, 1500);
 
 // 每个会话一条独立队列 + 一个中断开关（用户发「停」时立刻掐断正在飞的请求）
 const roomChains = new Map();
@@ -1458,4 +1464,7 @@ const server = http.createServer((req, res) => {
   }
   res.writeHead(404); res.end('not found');
 });
-server.listen(PORT, () => console.log(`[圆桌 v3] http://127.0.0.1:${PORT}  max-rounds=${MAX_ROUNDS}  members=${members.length}  rooms=${GROUP_IDS.join('/')}`));
+server.listen(PORT, HOST, () => {
+  const shown = HOST === '0.0.0.0' ? `http://127.0.0.1:${PORT}（已开放局域网，同网段可用本机 IP 访问）` : `http://${HOST}:${PORT}`;
+  console.log(`[圆桌 v3] ${shown}  max-rounds=${MAX_ROUNDS}  members=${members.length}  rooms=${GROUP_IDS.join('/')}`);
+});
