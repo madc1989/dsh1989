@@ -2090,6 +2090,12 @@ es.onmessage = (e) => {
     return;
   }
   if (ev.type === 'status') { states[ev.id] = { down: ev.down, speaking: ev.speaking }; const m = memberById(ev.id); if (m) paint(m); renderStatusBar(); return; }
+  if (ev.type === 'topic-deleted') {
+    delete topics[ev.id];
+    if (active === 't:' + ev.id) showHome();
+    renderSide();
+    return;
+  }
   if (ev.type === 'topic') {
     topics[ev.topic.id] = ev.topic;
     if (active === ev.topic.roomId) { renderStatusBar(); renderTopicPanel(); }

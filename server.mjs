@@ -616,7 +616,21 @@ function handleUser(roomId, text, attach) {
   });
 }
 
+// ---------- 兜底：崩了也要留下死因，而不是静悄悄消失 ----------
+process.on('uncaughtException', (e) => {
+  const msg = `[${new Date().toISOString()}] uncaughtException\n${e?.stack || e}\n\n`;
+  try { mkdirSync(join(DATA, '..', 'logs'), { recursive: true }); writeFileSync(join(DATA, '..', 'logs', 'crash.log'), msg, { flag: 'a' }); } catch {}
+  console.error('[uncaughtException]', e);
+});
+process.on('unhandledRejection', (e) => {
+  const msg = `[${new Date().toISOString()}] unhandledRejection\n${e?.stack || e}\n\n`;
+  try { mkdirSync(join(DATA, '..', 'logs'), { recursive: true }); writeFileSync(join(DATA, '..', 'logs', 'crash.log'), msg, { flag: 'a' }); } catch {}
+  console.error('[unhandledRejection]', e);
+});
+
 // ---------- 圆桌议题（P1：开议题 / 独立准备 / 揭晓） ----------
+
+
 // 设计：一个议题 = 一个特殊房间（roomId = "t:<id>"），消息照样进 room.jsonl；
 //       议题自己的槽位存在 topics.json。规格见 docs/议题规格.md
 const TOPICS_FILE = join(DATA, 'topics.json');
@@ -1031,7 +1045,24 @@ const server = http.createServer((req, res) => {
     });
     return;
   }
-  if (u.pathname === '/api/topic/select' && req.method === 'POST') {
+  // 删除议题（含它的房间与消息）。孤儿议题（房间已被删）也走这里清理。
+  if (u.pathname === '/api/topic/delete' && req.method === 'POST') {
+    let body = ''; req.on('data', c => body += c);
+    req.on('end', () => {
+      try {
+        const { topicId } = JSON.parse(body);
+        const t5 = topics[topicId];
+        if (!t5) return json(res, { ok: false, error: '议题不存在' });
+        delete topics[topicId]; saveTopics();
+        if (rooms[t5.roomId]) { delete rooms[t5.roomId]; saveRooms(); broadcast({ type: 'rooms', rooms }); }
+        for (let i = log.length - 1; i >= 0; i--) if (log[i].room === t5.roomId) log.splice(i, 1);
+        flushLog();
+        broadcast({ type: 'topic-deleted', id: topicId });
+        json(res, { ok: true });
+      } catch (e) { json(res, { ok: false, error: e.message }); }
+    });
+    return;
+  }  if (u.pathname === '/api/topic/select' && req.method === 'POST') {
     let body = ''; req.on('data', c => body += c);
     req.on('end', () => {
       try {
