@@ -328,6 +328,37 @@
   .home-empty .mcard .big { width:52px; height:52px; border-radius:999px; margin:0 auto 10px; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:700; color:#3a2c24; }
   .home-empty .mcard b { display:block; font-size:13px; color:var(--ink); margin-bottom:2px; }
   .home-empty .mcard span { font-size:11px; color:var(--ink-3); }
+/* 议题面板（P1） */
+  .topic-panel { margin:16px auto; max-width:620px; padding:16px 18px; border-radius:var(--r-lg); background:var(--surface); border:1px solid var(--line); box-shadow:var(--shadow-sm); text-align:center; }
+  .topic-panel .tp-head { font-size:14px; font-weight:600; color:var(--ink); margin-bottom:6px; }
+  .topic-panel .tp-sub { font-size:12px; color:var(--ink-3); margin:0 0 12px; line-height:1.7; }
+  .topic-panel .tp-slots { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-bottom:14px; }
+  .tp-slot { font-size:11px; padding:4px 10px; border-radius:999px; background:var(--surface-2); border:1px solid var(--line); color:var(--ink-3); }
+  .tp-slot.completed { background:#e3f1e7; border-color:#cfe6d6; color:var(--ok); }
+  .tp-slot.running { background:var(--lamp-soft); border-color:#e8c98d; color:#8a5a13; }
+  .tp-slot.skipped { color:var(--ink-4); }
+  .topic-panel .tp-go { font-size:13px; padding:9px 22px; border-radius:var(--r-md); border:1px solid var(--brand); background:var(--brand); color:var(--brand-ink); cursor:pointer; }
+  .topic-panel .tp-go:disabled { opacity:.6; cursor:default; }
+  .topic-panel .tp-wait { font-size:12px; color:var(--ink-3); }
+/* 主界面 */
+  #homeView { flex:1; display:flex; align-items:flex-start; justify-content:center; overflow:auto; padding:40px 24px; }
+  .home-wrap { width:100%; max-width:760px; text-align:center; }
+  .home-wrap .greet { display:inline-block; font-size:12px; color:var(--ink-3); background:var(--surface); border:1px solid var(--line); border-radius:999px; padding:4px 14px; margin-bottom:18px; }
+  .home-wrap h1 { font-size:32px; line-height:1.4; color:var(--ink); margin:0 0 10px; font-weight:700; }
+  .home-wrap p.sub { font-size:14px; color:var(--ink-3); margin:0 auto 22px; max-width:520px; line-height:1.75; }
+  .home-wrap .acts { display:flex; gap:10px; justify-content:center; margin-bottom:30px; }
+  .home-wrap .acts button { font-size:13px; padding:9px 18px; border-radius:var(--r-md); border:1px solid var(--line); background:var(--surface); color:var(--ink-2); cursor:pointer; }
+  .home-wrap .acts button:hover { background:var(--paper); border-color:var(--line-strong); }
+  .home-wrap .acts button.main { background:var(--brand); border-color:var(--brand); color:var(--brand-ink); }
+  .home-wrap .hsec { font-size:12px; color:var(--ink-3); font-weight:600; letter-spacing:.04em; text-align:left; margin:0 0 10px; }
+  .home-wrap .hcards { display:flex; gap:12px; flex-wrap:wrap; }
+  .home-wrap .hcard { width:168px; text-align:left; padding:14px; border-radius:var(--r-lg); border:1px solid var(--line); background:var(--surface); box-shadow:var(--shadow-sm); cursor:pointer; transition:transform .15s var(--ease), box-shadow .15s var(--ease); }
+  .home-wrap .hcard:hover { transform:translateY(-2px); box-shadow:var(--shadow); }
+  .home-wrap .hcard .ico { width:34px; height:34px; border-radius:10px; background:var(--lamp-soft); display:flex; align-items:center; justify-content:center; font-size:17px; margin-bottom:9px; }
+  .home-wrap .hcard b { display:block; font-size:13px; color:var(--ink); margin-bottom:3px; }
+  .home-wrap .hcard span { font-size:11px; color:var(--ink-3); }
+  .home-wrap .hfoot { margin-top:28px; font-size:11px; color:var(--ink-3); display:flex; gap:6px; align-items:center; justify-content:center; }
+  .home-wrap .dot-ok { width:7px; height:7px; border-radius:50%; background:var(--ok); display:inline-block; }
 </style>
 </head>
 <body>
@@ -336,6 +367,7 @@
     <div id="plusMenu">
       <div data-act="group">💬 新建群聊</div>
       <div data-act="member">🤖 添加模型</div>
+      <div data-act="topic">🧭 开议题</div>
       <div data-act="search">🔍 搜索</div>
       <div data-act="delmember">🚫 删除模型</div>
     </div>
@@ -350,11 +382,13 @@
       <div id="setMenu">
         <div data-sact="backup">📦 生成备份</div>
         <div data-sact="import">📥 导入备份</div>
+        <div data-sact="rename">✏️ 重命名</div>
         <div data-sact="theme">🎨 背景设置</div>
       </div>
     </div>
   </div>
   <div id="main">
+    <div id="homeView" style="display:none"></div>
     <div id="head">
       <div class="title" id="title">—</div>
       <div class="peers" id="peers"></div>
@@ -417,6 +451,11 @@ const msgs = $('msgs'), inp = $('in');
 let M = [], rooms = {}, states = {}, netOnline = true, active = 'free', colorMap = {}, streaming = {}, mdom = {}, maxR = 6;
 let unread = {};   // 未读条数：{ 'dm:kimi': 2, free: 3 } —— 对应微信的红点/角标
 let roomSettings = {}, histDefault = 6000;   // 每个会话独立设置（上下文长度）
+let topics = {};                              // 议题：id -> topic（来自 /api/state.topics 与 SSE topic 事件）
+const TOPIC_STATUS = { preparing:'准备材料', reviewing:'各自准备中', discussing:'讨论中', conclusion:'待确认结论', confirmed:'结论已确认', ended:'已结束', blocked:'需要核对' };
+const KIND_LABEL = { review:'评审', candidates:'比稿', proposals:'方案比较' };
+const SLOT_LABEL = { queued:'准备中', running:'正在准备…', completed:'已交稿', skipped:'已跳过', blocked:'出错' };
+const topicByRoom = (rid) => Object.values(topics).find(t => t.roomId === rid) || null;
 let loading = false, pendingRows = [], loadSeq = 0;   // 切房间时的加载窗口：先缓存实时消息，加载完再补画
 
 const colorOf = (n) => colorMap[n] ??= COLORS[Object.keys(colorMap).length % COLORS.length];
@@ -509,6 +548,7 @@ function msgRow(rec){
   return row;
 }
 async function openRoom(id){
+  if (homeMode) hideHome();
   active = id;
   delete unread[id];                                  // 打开即清红点
   if (typeof closeMention === 'function') closeMention();
@@ -528,6 +568,81 @@ async function openRoom(id){
   pendingRows = [];
   renderStatusBar();
   renderHomeEmpty();
+  renderTopicPanel();
+}
+// 议题房间：未揭晓时在聊天区底部挂一块"各自准备中"的面板 + 揭晓按钮
+function renderTopicPanel(){
+  const old = document.getElementById('topicPanel');
+  if (old) old.remove();
+  const tp = topicByRoom(active);
+  if (!tp) return;
+  if (tp.revealedAt) return;
+  const done = tp.slots.filter(s => s.status === 'completed' || s.status === 'skipped').length;
+  const ready = done === tp.slots.length && tp.status === 'reviewing';
+  const d = document.createElement('div');
+  d.id = 'topicPanel';
+  d.className = 'topic-panel';
+  d.innerHTML = `<div class="tp-head">🧭 ${KIND_LABEL[tp.kind] || '议题'} · ${TOPIC_STATUS[tp.status] || tp.status}</div>
+    <p class="tp-sub">${ready ? '全部成员都交稿了，可以揭晓。' : '各成员在各自独立作答，公开前互相看不到对方的产出。'}</p>
+    <div class="tp-slots">${tp.slots.map(s => {
+      const mb = memberById(s.memberId);
+      return `<span class="tp-slot ${s.status}">${esc(mb?.name || s.memberId)} · ${SLOT_LABEL[s.status] || s.status}</span>`;
+    }).join('')}</div>
+    ${ready ? `<button class="tp-go" id="tpReveal">揭晓 ${done} 份</button>` : `<div class="tp-wait">准备中 ${done}/${tp.slots.length}</div>`}`;
+  msgs.appendChild(d);
+  const btn = $('tpReveal');
+  if (btn) btn.onclick = async () => {
+    btn.disabled = true; btn.textContent = '揭晓中…';
+    const r = await apiPost('/api/topic/reveal', { topicId: tp.id });
+    if (!r.ok) { alert('揭晓失败：' + (r.error || '未知')); btn.disabled = false; btn.textContent = '揭晓'; return; }
+    topics[r.topic.id] = r.topic;
+    await openRoom(active);
+  };
+}
+// ---------- 主界面（点左上角标题进来） ----------
+let homeMode = false;
+function greetWord(){ const h = new Date().getHours(); return h < 6 ? '凌晨好' : h < 11 ? '早上好' : h < 14 ? '中午好' : h < 18 ? '下午好' : '晚上好'; }
+function showHome(){
+  homeMode = true;
+  const hv = $('homeView'); if (!hv) return;
+  hv.style.display = 'flex';
+  ['head','statusbar','msgs','modeTabs','inputbar','selbar','pendingWrap'].forEach(id => { const e = $(id); if (e) e.style.display = 'none'; });
+  document.querySelectorAll('#groups .item.active, #contacts .item.active').forEach(d => d.classList.remove('active'));
+  renderHome();
+}
+function hideHome(){
+  homeMode = false;
+  const hv = $('homeView'); if (hv) hv.style.display = 'none';
+  ['head','statusbar','msgs','modeTabs','inputbar'].forEach(id => { const e = $(id); if (e) e.style.display = ''; });
+  renderStatusBar();
+}
+function renderHome(){
+  const hv = $('homeView'); if (!hv) return;
+  const roomIds = Object.keys(rooms).filter(k => !k.startsWith('t:') && rooms[k]);
+  const topicRooms = Object.keys(rooms).filter(k => rooms[k] && rooms[k].topic);
+  const online = M.filter(m => !isOff(m)).length;
+  const rcard = (id) => {
+    const r = rooms[id]; const tp = r.topic ? topics[r.topic] : null;
+    const n = r.members?.length || 0;
+    const sub = tp ? `${KIND_LABEL[tp.kind] || '议题'} · ${TOPIC_STATUS[tp.status] || tp.status}` : `${n} 位成员`;
+    const emoji = tp ? '🧭' : '💬';
+    return `<div class="hcard" data-room="${esc(id)}"><div class="ico">${emoji}</div><b>${esc(r.name)}</b><span>${esc(sub)}</span></div>`;
+  };
+  hv.innerHTML = `<div class="home-wrap">
+    <div class="greet">${greetWord()}</div>
+    <h1>今天想聊点什么？</h1>
+    <p class="sub">几个模型坐在一桌，谁都可以开口；也可以开个议题，让他们各自独立写一版，再摊开比。</p>
+    <div class="acts">
+      <button class="main" id="hNewGroup">＋ 新建群聊</button>
+      <button id="hNewTopic">🧭 开议题</button>
+    </div>
+    <div class="hsec">房间</div>
+    <div class="hcards">${roomIds.map(rcard).join('')}${topicRooms.length ? '' : ''}</div>
+    <div class="hfoot"><span class="dot-ok"></span>${online} / ${M.length} 位成员在线 · 记录都在这台机器上</div>
+  </div>`;
+  $('hNewGroup').onclick = () => openNewGroup();
+  $('hNewTopic').onclick = () => openTopicDialog();
+  hv.querySelectorAll('.hcard').forEach(c => { c.onclick = () => openRoom(c.dataset.room); });
 }
 // 空房间的欢迎屏：问候 → 大标题 → 说明 → 两个动作 → 成员卡（点谁进私聊）
 function renderHomeEmpty(){
@@ -616,16 +731,23 @@ function renderStatusBar(){
   if (!bar) return;
   const isDm = active.startsWith('dm:');
   bar.style.display = isDm ? 'none' : '';
-  $('modeTabs').style.display = isDm ? 'none' : '';
+  $('modeTabs').style.display = (isDm || !!topicByRoom(active)) ? 'none' : '';
   if (isDm) return;
   const st = roomSettings[active] || {};
   const mode = st.mode === 'persona' ? 'free' : (st.mode || 'free');   // 旧数据兼容：设定模式已取消
   const ri = roundInfo[active] || { calls: 0, paused: false };
   const activeRun = !!ri.who || !!ri.paused;               // 暂停中这一轮还挂着，也算"进行中"
-  let label = MODE_LABEL[mode] || '讨论中';
-  if (ri.who) label += ' · ' + ri.who + ' 正在发言';
-  if (ri.beat && ri.total) label += ' · 第 ' + ri.beat + '/' + ri.total + ' 拍';
-  if (activeRun && ri.paused) label += ' · 已暂停';
+  const tp = topicByRoom(active);
+  let label;
+  if (tp) {
+    const done = tp.slots.filter(s => s.status === 'completed' || s.status === 'skipped').length;
+    label = `${KIND_LABEL[tp.kind] || '议题'} · ${TOPIC_STATUS[tp.status] || tp.status} · ${done}/${tp.slots.length} 已交稿`;
+  } else {
+    label = MODE_LABEL[mode] || '讨论中';
+    if (ri.who) label += ' · ' + ri.who + ' 正在发言';
+    if (ri.beat && ri.total) label += ' · 第 ' + ri.beat + '/' + ri.total + ' 拍';
+    if (activeRun && ri.paused) label += ' · 已暂停';
+  }
   $('sbMode').textContent = label;
   $('sbCalls').textContent = '已调用 ' + (ri.calls || 0) + ' 次';
   $('sbCalls').title = '本轮调用次数（含失败与中断）；次数不等于费用';
@@ -644,11 +766,17 @@ function renderStatusBar(){
     const out = pres[m.id] === false;
     const speaking = !!s.speaking && !out;
     const off = isOff(m) || out;
-    const label = out ? '已离席' : speaking ? '正在说话…' : isOff(m) ? '不在线' : '在场';
-    return `<div class="seat${speaking ? ' speaking' : ''}${off ? ' off' : ''}" data-id="${m.id}">${avaM(m)}` +
-      `<div class="st"><b>${esc(m.name)}${speaking ? ' · 正在发言' : ''}</b><span>${label}</span></div></div>`;
+    let label = out ? '已离席' : speaking ? '正在说话…' : isOff(m) ? '不在线' : '在场';
+    let hot = speaking;
+    if (tp) {                                              // 议题房间：席位显示"交稿状态"
+      const slot = tp.slots.find(x => x.memberId === m.id);
+      label = slot ? (SLOT_LABEL[slot.status] || slot.status) : '不在本议题';
+      hot = !!slot && (slot.status === 'running' || slot.status === 'completed');
+    }
+    return `<div class="seat${hot ? ' speaking' : ''}${off ? ' off' : ''}" data-id="${m.id}">${avaM(m)}` +
+      `<div class="st"><b>${esc(m.name)}${hot && !tp ? ' · 正在发言' : ''}</b><span>${label}</span></div></div>`;
   }).join('');
-  $('sbPills').innerHTML = list.map(m => {
+  $('sbPills').innerHTML = tp ? '' : list.map(m => {
     const on = pres[m.id] !== false;
     return `<button class="pill${on ? ' on' : ''}" data-pid="${m.id}">${esc(m.name)} ${on ? '✓' : '○'}</button>`;
   }).join('');
@@ -776,7 +904,7 @@ $('plusMenu').onclick = (e) => {
   const act = e.target.dataset.act;
   if (!act) return;
   $('plusMenu').style.display = 'none';
-  act === 'group' ? openNewGroup() : act === 'member' ? openAddMember() : act === 'search' ? openSearch() : openRemoveMember();
+  act === 'group' ? openNewGroup() : act === 'topic' ? openTopicDialog() : act === 'member' ? openAddMember() : act === 'search' ? openSearch() : openRemoveMember();
 };
 function openNewGroup(){
   const box = $('modalBox');
@@ -794,6 +922,55 @@ function openNewGroup(){
     $('modal').style.display = 'none';
     if (r.ok) { rooms[r.id] = { name, members: mem }; renderSide(); openRoom(r.id); }
     else alert('创建失败：' + (r.error || '未知'));
+  };
+}
+function openTopicDialog(){
+  const box = $('modalBox');
+  const lab = (t) => `<div style="font-size:12px;color:var(--ink-3);margin:12px 0 5px">${t}</div>`;
+  box.innerHTML = `<h3>🧭 开议题</h3>
+    <div style="font-size:11px;color:var(--ink-3);margin-top:4px;line-height:1.7">成员各自独立作答，<b>公开前互相看不到</b>；全部交稿后一起揭晓，再讨论、比稿、选一版。</div>
+    ${lab('议题名称（可留空，自动取材料首行）')}
+    <input id="tpTitle" placeholder="例如：这段文案该怎么改" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;font-size:14px;font-family:inherit">
+    ${lab('类型')}
+    <select id="tpKind" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;font-size:13px">
+      <option value="review">评审 —— 大家检查同一份材料，挑问题</option>
+      <option value="candidates">比稿 —— 每人独立写一版同样的东西</option>
+      <option value="proposals">方案比较 —— 每人提一个方案</option>
+    </select>
+    ${lab('材料')}
+    <textarea id="tpMaterial" rows="5" placeholder="把要评审的文案、要写的题目、要比的方案要求贴进来…" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical"></textarea>
+    ${lab('参加成员（勾选）')}
+    <div style="max-height:140px;overflow:auto">${M.map(m => `<label style="display:flex;align-items:center;gap:8px;padding:4px"><input type="checkbox" class="tpMem" value="${m.id}" checked> ${esc(m.name)} <span style="color:var(--ink-4);font-size:11px">${esc(m.model)}</span></label>`).join('')}</div>
+    <div id="tpChooserWrap">
+      ${lab('选稿方式')}
+      <select id="tpChooser" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;font-size:13px">
+        <option value="user">由我并排比较后选择</option>
+        <option value="synthesizer">由汇总成员综合成新一版</option>
+      </select>
+    </div>
+    ${lab('汇总成员')}
+    <select id="tpLead" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;font-size:13px">${M.map(m => `<option value="${m.id}">${esc(m.name)}</option>`).join('')}</select>
+    <div class="foot"><button id="tpCancel">取消</button><button class="primary" id="tpGo">开始准备</button></div>`;
+  $('modal').style.display = 'flex';
+  const syncKind = () => { $('tpChooserWrap').style.display = $('tpKind').value === 'review' ? 'none' : ''; };
+  $('tpKind').onchange = syncKind; syncKind();
+  $('tpCancel').onclick = () => { $('modal').style.display = 'none'; };
+  $('tpGo').onclick = async () => {
+    const memberIds = [...box.querySelectorAll('.tpMem:checked')].map(i => i.value);
+    if (!memberIds.length) { alert('至少选一位成员'); return; }
+    const material = $('tpMaterial').value.trim();
+    if (!material) { alert('请填写材料'); return; }
+    const btn = $('tpGo'); btn.disabled = true; btn.textContent = '创建中…';
+    const r = await apiPost('/api/topic/open', {
+      title: $('tpTitle').value.trim(), kind: $('tpKind').value, material,
+      memberIds, leadMemberId: $('tpLead').value, chooser: $('tpChooser').value,
+    });
+    if (!r.ok) { alert('创建失败：' + (r.error || '未知')); btn.disabled = false; btn.textContent = '开始准备'; return; }
+    topics[r.topic.id] = r.topic;
+    rooms[r.topic.roomId] = { name: r.topic.title, members: r.topic.memberIds, topic: r.topic.id };
+    $('modal').style.display = 'none';
+    renderSide();
+    openRoom(r.topic.roomId);
   };
 }
 function openAddMember(){
@@ -1154,7 +1331,7 @@ function openRoomSettings(){
 }
 
 // ---------- 左上角标题重命名 ----------
-$('appTitle').onclick = () => {
+function openRename(){
   const box = $('modalBox');
   box.innerHTML = `<h3>重命名</h3>
     <input id="appTitleInput" value="${esc($('appTitle').textContent)}" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;font-size:14px;margin:10px 0;font-family:inherit">
@@ -1165,12 +1342,13 @@ $('appTitle').onclick = () => {
   $('atGo').onclick = async () => {
     const t = $('appTitleInput').value.trim();
     if (!t) { alert('标题不能为空'); return; }
-    const r = await fetch('/api/app-title', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ title: t }) }).then(x => x.json());
+    const r = await apiPost('/api/app-title', { title: t });
     $('modal').style.display = 'none';
     if (r.ok) { $('appTitle').textContent = r.title; document.title = r.title + ' · 多模型聊天'; }
     else alert('重命名失败：' + (r.error || '未知'));
   };
-};
+}
+$('appTitle').onclick = () => showHome();
 
 // ---------- 背景设置 ----------
 const GRAD = 'linear-gradient(135deg, #dbeafe 0%, #ede9fe 35%, #fce7f3 65%, #fef3c7 100%)';
@@ -1325,7 +1503,7 @@ $('setMenu').onclick = (e) => {
   const act = e.target.dataset.sact;
   if (!act) return;
   $('setMenu').style.display = 'none';
-  act === 'backup' ? openBackupModal() : act === 'import' ? openImportModal() : openThemeModal();
+  act === 'backup' ? openBackupModal() : act === 'import' ? openImportModal() : act === 'rename' ? openRename() : openThemeModal();
 };
 
 // —— 生成备份 ——
@@ -1554,11 +1732,12 @@ inp.onkeydown = (e) => {
 fetch('/api/state').then(r => r.json()).then(s => {
   M = s.members; rooms = s.rooms; states = s.states || {}; netOnline = s.netOnline !== false; maxR = s.maxRounds;
   roomSettings = s.settings || {}; histDefault = s.histDefault || 6000;
+  topics = {}; (s.topics || []).forEach(t => { topics[t.id] = t; });
   if (s.appTitle) { $('appTitle').textContent = s.appTitle; document.title = s.appTitle + ' · 多模型聊天'; }
   if (s.theme) applyTheme(s.theme); else applyTheme({ dark: true, gradient: true, pattern: 'none' });
   setNet(netOnline);
   renderSide();
-  openRoom('free');
+  showHome();                                   // 落地页：主界面，点房间才进去
 });
 const es = new EventSource('/api/events');
 es.onmessage = (e) => {
@@ -1568,6 +1747,11 @@ es.onmessage = (e) => {
     return;
   }
   if (ev.type === 'status') { states[ev.id] = { down: ev.down, speaking: ev.speaking }; const m = memberById(ev.id); if (m) paint(m); renderStatusBar(); return; }
+  if (ev.type === 'topic') {
+    topics[ev.topic.id] = ev.topic;
+    if (active === ev.topic.roomId) { renderStatusBar(); renderTopicPanel(); }
+    return;
+  }
   if (ev.type === 'round') { if (ev.room === active) { roundInfo[active] = { calls: ev.calls, paused: ev.paused, who: ev.who, beat: ev.beat, total: ev.total }; renderStatusBar(); } return; }
   if (ev.type === 'net') { setNet(ev.online); return; }
   if (ev.type === 'rooms') { rooms = ev.rooms; renderSide(); renderStatusBar(); return; }

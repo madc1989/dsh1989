@@ -614,6 +614,81 @@ function handleUser(roomId, text, attach) {
   });
 }
 
+// ---------- 圆桌议题（P1：开议题 / 独立准备 / 揭晓） ----------
+// 设计：一个议题 = 一个特殊房间（roomId = "t:<id>"），消息照样进 room.jsonl；
+//       议题自己的槽位存在 topics.json。规格见 docs/议题规格.md
+const TOPICS_FILE = join(DATA, 'topics.json');
+let topics = existsSync(TOPICS_FILE) ? JSON.parse(readFileSync(TOPICS_FILE, 'utf8')) : {};
+const saveTopics = () => writeFileSync(TOPICS_FILE, JSON.stringify(topics, null, 2), 'utf8');
+
+const KIND_NAME = { review: '评审', candidates: '比稿', proposals: '方案比较' };
+
+// 对外视图：**未揭晓前绝不返回候选正文**（互不可见靠这里兜底，不靠前端藏）
+function publicTopic(t) {
+  if (!t) return null;
+  const open = Boolean(t.revealedAt) || ['discussing', 'conclusion', 'confirmed', 'ended'].includes(t.status);
+  return {
+    id: t.id, roomId: t.roomId, title: t.title, kind: t.kind, status: t.status,
+    memberIds: t.memberIds, leadMemberId: t.leadMemberId, chooser: t.chooser,
+    revealedAt: t.revealedAt || null, selectedSlotId: t.selectedSlotId || null,
+    createdAt: t.createdAt, updatedAt: t.updatedAt,
+    slots: (t.slots || []).map(s => ({
+      memberId: s.memberId, status: s.status, at: s.at || null,
+      ...(open ? { text: s.text || '', error: s.error || null } : {}),
+    })),
+    conclusion: t.conclusion || null,
+  };
+}
+const topicOfRoom = (roomId) => (roomId && roomId.startsWith('t:') ? topics[roomId.slice(2)] : null);
+const topicReady = (t) => t.slots.every(s => s.status === 'completed' || s.status === 'skipped');
+
+// 单个成员的一句话作答：走和 speak 一样的模型通道，但**不写聊天记录、不广播**
+async function askOnce(member, room, extra, turnNote) {
+  const system = systemPrompt(member, room, extra);
+  const budget = member.provider === LOCAL_PROVIDER ? Math.min(histFor(room.id), 3500) : undefined;
+  const turns = [...recentTurns(room.id, budget), { role: 'user', content: turnNote }];
+  const ac = new AbortController();
+  const ctl = ctlOf(room.id); ctl.acs.add(ac);
+  const signal = AbortSignal.any ? AbortSignal.any([AbortSignal.timeout(180_000), ac.signal]) : ac.signal;
+  let text = '';
+  try {
+    const run = async () => { for await (const chunk of askMember(member, system, turns, signal)) text += chunk; };
+    await (member.provider === LOCAL_PROVIDER ? localLock(run) : run());
+  } finally { ctl.acs.delete(ac); }
+  return stripPrefix(text).trim();
+}
+
+function topicTurnNote(t) {
+  const head = {
+    review: '请你**独立评审**下面的材料：指出问题、风险和需要修改的地方。',
+    candidates: '请你**独立写一版**方案/稿子，直接给成品，不要评论别人。',
+    proposals: '请你**独立提出一个方案**：说清做法、代价和适用条件。',
+  }[t.kind] || '请独立作答。';
+  return `${head}
+其他成员也在做同一件事，但你们彼此看不到对方的产出，公开前互不分享。
+要求：中文；直接给内容，不要复述材料；不要写"作为 AI"这类开头；不超过 600 字。`;
+}
+
+async function runTopicPreparation(topic, room) {
+  topic.status = 'reviewing'; topic.updatedAt = Date.now(); saveTopics();
+  broadcast({ type: 'topic', topic: publicTopic(topic) });
+  await Promise.all(topic.slots.map(async (slot) => {
+    const mb = memberById(slot.memberId);
+    if (!mb) { slot.status = 'skipped'; slot.error = '成员不存在'; return; }
+    slot.status = 'running'; saveTopics(); broadcast({ type: 'topic', topic: publicTopic(topic) });
+    try {
+      const text = await askOnce(mb, room, '', topicTurnNote(topic));
+      if (text) { slot.text = text; slot.status = 'completed'; } else { slot.status = 'skipped'; slot.error = '返回空内容'; }
+    } catch (e) {
+      slot.status = 'skipped'; slot.error = e.message;
+    }
+    slot.at = Date.now(); saveTopics(); broadcast({ type: 'topic', topic: publicTopic(topic) });
+  }));
+  topic.updatedAt = Date.now(); saveTopics();
+  broadcast({ type: 'topic', topic: publicTopic(topic) });
+  if (topicReady(topic)) addRec({ id: 's' + Date.now() + 'tr', ts: Date.now(), room: topic.roomId, kind: 'system', from: 'system', text: `（独立准备完成：${topic.slots.filter(s => s.status === 'completed').length}/${topic.slots.length} 份。可以揭晓了）`, meta: {} });
+}
+
 // ---------- HTTP ----------
 const HTML = readFileSync(join(ROOT, 'public', 'index.html'));
 const json = (res, obj, code = 200) => { res.writeHead(code, { 'content-type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(obj)); };
@@ -621,7 +696,7 @@ const server = http.createServer((req, res) => {
   const u = new URL(req.url, 'http://x');
   if (u.pathname === '/' && req.method === 'GET') { res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }); return res.end(HTML); }
   if (u.pathname === '/api/state' && req.method === 'GET') {
-    return json(res, { members, rooms, maxRounds: MAX_ROUNDS, states: mstate, netOnline, settings: roomSettings, histDefault: HIST_CHARS, appTitle: roomSettings._app?.title || '圆桌', theme: roomSettings._app?.theme || null });
+    return json(res, { members, rooms, maxRounds: MAX_ROUNDS, states: mstate, netOnline, settings: roomSettings, histDefault: HIST_CHARS, appTitle: roomSettings._app?.title || '圆桌', theme: roomSettings._app?.theme || null, topics: Object.values(topics).map(publicTopic) });
   }
   if (u.pathname === '/api/messages' && req.method === 'GET') {
     const room = u.searchParams.get('room') || 'free';
@@ -849,6 +924,74 @@ const server = http.createServer((req, res) => {
         roomSettings[room] = next;
         saveSettings();
         json(res, { ok: true, settings: next });
+      } catch (e) { json(res, { ok: false, error: e.message }); }
+    });
+    return;
+  }
+  // ---------- 议题 API（P1） ----------
+  if (u.pathname === '/api/topic/open' && req.method === 'POST') {
+    let body = ''; req.on('data', c => body += c);
+    req.on('end', () => {
+      try {
+        const { title, kind, material, memberIds, leadMemberId, chooser } = JSON.parse(body);
+        const k = ['review', 'candidates', 'proposals'].includes(kind) ? kind : 'review';
+        const mat = String(material || '').trim().slice(0, 100000);
+        const ids = Array.isArray(memberIds) ? memberIds.filter(id => memberById(id)) : [];
+        if (!ids.length) return json(res, { ok: false, error: '请至少选择一位成员' });
+        if (new Set(ids).size !== ids.length) return json(res, { ok: false, error: '成员重复' });
+        if (!mat) return json(res, { ok: false, error: '请填写材料' });
+        const lead = memberById(leadMemberId) ? leadMemberId : ids[0];
+        const id = 't' + Date.now().toString(36);
+        const roomId = 't:' + id;
+        const tt = String(title || '').trim().slice(0, 24) || (KIND_NAME[k] + '：' + (mat.split('\n')[0] || '').slice(0, 16));
+        rooms[roomId] = { name: tt, members: ids, topic: id };
+        saveRooms();
+        const topic = {
+          id, roomId, title: tt, kind: k, status: 'preparing', material: { text: mat },
+          memberIds: ids, leadMemberId: lead, chooser: chooser === 'synthesizer' ? 'synthesizer' : 'user',
+          slots: ids.map(mid => ({ memberId: mid, status: 'queued', text: '' })),
+          revealedAt: null, selectedSlotId: null, conclusion: null,
+          createdAt: Date.now(), updatedAt: Date.now(),
+        };
+        topics[id] = topic; saveTopics();
+        addRec({ id: 'u' + Date.now(), ts: Date.now(), room: roomId, kind: 'user', from: '你', text: mat, meta: { topicMaterial: true } });
+        addRec({ id: 's' + Date.now() + 't', ts: Date.now(), room: roomId, kind: 'system', from: 'system', text: `（${KIND_NAME[k]}议题「${tt}」：${ids.length} 位成员各自独立准备，公开前互不可见）`, meta: {} });
+        broadcast({ type: 'rooms', rooms });
+        broadcast({ type: 'topic', topic: publicTopic(topic) });
+        json(res, { ok: true, topic: publicTopic(topic) });
+        runTopicPreparation(topic, roomInfo(roomId)).catch(e => {
+          topic.status = 'blocked'; saveTopics();
+          broadcast({ type: 'topic', topic: publicTopic(topic) });
+          console.error('[topic]', e.message);
+        });
+      } catch (e) { json(res, { ok: false, error: e.message }); }
+    });
+    return;
+  }
+  if (u.pathname === '/api/topic/reveal' && req.method === 'POST') {
+    let body = ''; req.on('data', c => body += c);
+    req.on('end', () => {
+      try {
+        const { topicId } = JSON.parse(body);
+        const t = topics[topicId];
+        if (!t) return json(res, { ok: false, error: '议题不存在' });
+        if (t.revealedAt) return json(res, { ok: false, error: '已经揭晓过了' });
+        if (!topicReady(t)) return json(res, { ok: false, error: '还有成员在准备，等全部完成再揭晓' });
+        let n = 0;
+        for (const slot of t.slots) {
+          if (slot.status !== 'completed') continue;
+          const mb = memberById(slot.memberId);
+          addRec({
+            id: 'm' + Date.now() + Math.random().toString(36).slice(2, 6), ts: Date.now(), room: t.roomId,
+            kind: 'member', from: mb?.name || slot.memberId, text: slot.text,
+            meta: { topicId: t.id, slotId: slot.memberId, revealed: true },
+          });
+          n++;
+        }
+        t.revealedAt = Date.now(); t.status = 'discussing'; t.updatedAt = Date.now(); saveTopics();
+        addRec({ id: 's' + Date.now() + 'rv', ts: Date.now(), room: t.roomId, kind: 'system', from: 'system', text: `（已揭晓 ${n} 份，可以开始讨论了）`, meta: {} });
+        broadcast({ type: 'topic', topic: publicTopic(t) });
+        json(res, { ok: true, topic: publicTopic(t) });
       } catch (e) { json(res, { ok: false, error: e.message }); }
     });
     return;
