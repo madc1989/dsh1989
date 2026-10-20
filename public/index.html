@@ -380,6 +380,36 @@
   .cmp-pick { margin-top:12px; font-size:12px; padding:8px 0; border-radius:var(--r-sm); border:1px solid var(--brand); background:var(--brand); color:var(--brand-ink); cursor:pointer; }
   .cmp-pick:disabled { background:var(--surface-2); color:var(--ink-3); border-color:var(--line); cursor:default; }
 #topicBar .primary { background:var(--brand); border-color:var(--brand); color:var(--brand-ink); }
+/* 人物卡 */
+  .mc-wrap { display:flex; gap:18px; }
+  .mc-left { width:230px; flex-shrink:0; }
+  .mc-portrait { height:280px; border-radius:var(--r-lg); border:1px dashed var(--line-strong); background:var(--surface-2); display:flex; align-items:center; justify-content:center; text-align:center; cursor:pointer; overflow:hidden; color:var(--ink-3); font-size:12px; line-height:1.7; }
+  .mc-portrait img { width:100%; height:100%; object-fit:cover; display:block; }
+  .mc-ava-row { display:flex; align-items:center; gap:10px; margin-top:12px; }
+  .mc-ava { width:56px; height:56px; border-radius:999px; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:700; color:#3a2c24; overflow:hidden; cursor:pointer; border:2px solid var(--surface); box-shadow:var(--shadow-sm); flex-shrink:0; }
+  .mc-ava img { width:100%; height:100%; object-fit:cover; }
+  .mc-ava-info b { display:block; font-size:13px; color:var(--ink); }
+  .mc-ava-info span { font-size:11px; color:var(--ink-3); }
+  .mc-right { flex:1; min-width:0; }
+  .mc-lab { display:block; font-size:12px; color:var(--ink-3); margin:10px 0 5px; }
+  .mc-in { width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:var(--r-sm); font-size:13px; font-family:inherit; background:var(--surface-2); color:var(--ink); resize:vertical; }
+  .mc-colors { display:flex; gap:7px; flex-wrap:wrap; align-items:center; }
+  .mc-color { width:22px; height:22px; border-radius:999px; cursor:pointer; border:2px solid transparent; display:inline-block; }
+  .mc-color.on { border-color:var(--ink); }
+  .mc-auto { width:auto; padding:0 9px; height:22px; line-height:20px; font-size:11px; color:var(--ink-3); background:var(--surface-2); border:1px solid var(--line); border-radius:999px; }
+  .mc-auto.on { border-color:var(--ink); color:var(--ink); }
+  .mc-link { color:var(--focus); cursor:pointer; text-decoration:underline; font-size:11px; }
+  .mc-two { display:flex; gap:12px; }
+  .mc-two > div { flex:1; }
+  .mc-del { color:var(--bad); border-color:#e8bdb6; }
+.mc-portrait { position:relative; height:300px; border-radius:var(--r-lg); border:1px solid var(--line); background:var(--surface-2); overflow:hidden; display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--ink-3); font-size:12px; line-height:1.7; text-align:center; }
+  .mc-portrait .mc-pimg { position:absolute; left:50%; top:50%; height:100%; width:auto; transform:translate(-50%,-50%); transform-origin:center; cursor:grab; user-select:none; -webkit-user-drag:none; }
+  .mc-zoom { position:absolute; left:8px; bottom:8px; font-size:11px; color:#fff; background:rgba(43,35,30,.62); border-radius:999px; padding:2px 9px; pointer-events:none; }
+  .mc-reset { position:absolute; right:8px; bottom:8px; font-size:11px; color:#fff; background:rgba(43,35,30,.62); border-radius:999px; padding:2px 9px; cursor:pointer; }
+  .mc-reset:hover { background:rgba(43,35,30,.85); }
+.mc-crop { width:100%; margin-top:10px; font-size:12px; padding:7px 0; border-radius:var(--r-sm); border:1px solid var(--line); background:var(--surface); color:var(--ink-2); cursor:pointer; }
+  .mc-crop:hover { background:var(--paper); border-color:var(--line-strong); }
+  .mc-crop:disabled { opacity:.6; cursor:default; }
 </style>
 </head>
 <body>
@@ -473,7 +503,8 @@ const msgs = $('msgs'), inp = $('in');
 let M = [], rooms = {}, states = {}, netOnline = true, active = 'free', colorMap = {}, streaming = {}, mdom = {}, maxR = 6;
 let unread = {};   // 未读条数：{ 'dm:kimi': 2, free: 3 } —— 对应微信的红点/角标
 let roomSettings = {}, histDefault = 6000;   // 每个会话独立设置（上下文长度）
-let topics = {};                              // 议题：id -> topic（来自 /api/state.topics 与 SSE topic 事件）
+let topics = {};
+let appAddressing = 'MD';   // 模型怎么称呼你（全局）                              // 议题：id -> topic（来自 /api/state.topics 与 SSE topic 事件）
 const TOPIC_STATUS = { preparing:'准备材料', reviewing:'各自准备中', discussing:'讨论中', summarizing:'整理结论中', conclusion:'待确认结论', confirmed:'结论已确认', ended:'已结束', blocked:'需要核对' };
 const KIND_LABEL = { review:'评审', candidates:'比稿', proposals:'方案比较' };
 const SLOT_LABEL = { queued:'准备中', running:'正在准备…', completed:'已交稿', skipped:'已跳过', blocked:'出错' };
@@ -485,7 +516,10 @@ const hhmm = (ts) => new Date(ts || Date.now()).toLocaleTimeString('zh-CN', { ho
 const esc = (s) => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const ava = (name) => `<div class="ava" style="background:${colorOf(name)}">${esc(name[0])}</div>`;
 // 成员头像：配了 emoji 就用 emoji，否则用名字首字
-const avaM = (m) => `<div class="ava" style="background:${colorOf(m.name)}">${esc(m.emoji || m.name[0])}</div>`;
+const colorForName = (n) => { const mm = M.find(x => x.name === n); return (mm && mm.color) || colorOf(n); };
+const avaM = (m) => (m && m.avatar)
+  ? `<div class="ava" style="background:${m.color || colorOf(m.name)};background-image:url('${esc(m.avatar)}');background-size:cover;background-position:center"></div>`
+  : `<div class="ava" style="background:${(m && m.color) || colorOf(m && m.name || '')}">${esc((m && (m.emoji || m.name[0])) || '?')}</div>`;
 function attachHtml(a){
   if (!a) return '';
   const mime = a.mime || '';
@@ -526,7 +560,8 @@ function renderSide(){
   for (const m of M) {
     const d = document.createElement('div');
     d.className = 'item' + (active === 'dm:' + m.id ? ' active' : '') + (isOff(m) ? ' off' : '');
-    d.innerHTML = `${avaM(m)}<div class="t"><b>${esc(m.name)}</b><span>${esc(m.model)}${m.persona ? ' · 🎭' + esc(m.persona) : ''}</span></div><button class="more" title="个人资料">⋯</button>`;
+    const subline = m.tagline ? m.tagline : (esc(m.model) + (m.persona ? ' · 🎭' + esc(m.persona) : ''));
+    d.innerHTML = `${avaM(m)}<div class="t"><b>${esc(m.name)}</b><span>${m.tagline ? esc(m.tagline) : subline}</span></div><button class="more" title="个人资料">⋯</button>`;
     const dot = document.createElement('i');
     const st = states[m.id] || {};
     dot.className = 'dot' + (isOff(m) ? ' off' : st.speaking ? ' typing' : '');
@@ -552,7 +587,7 @@ function msgRow(rec){
   const row = document.createElement('div');
   row.className = 'row ' + (rec.kind === 'user' ? 'user' : rec.kind === 'system' ? 'system' : '');
   row.id = rec.id;
-  if (rec.kind === 'member') row.innerHTML = `${ava(rec.from)}<div class="msg" style="background:${colorOf(rec.from)}"><div class="who">${esc(rec.from)} · ${hhmm(rec.ts)}</div><div class="body">${esc(rec.text)}</div></div>`;
+  if (rec.kind === 'member') row.innerHTML = `${ava(rec.from)}<div class="msg" style="background:${colorForName(rec.from)}"><div class="who">${esc(rec.from)} · ${hhmm(rec.ts)}</div><div class="body">${esc(rec.text)}</div></div>`;
   else if (rec.kind === 'user') row.innerHTML = `<div class="msg">${rec.text ? `<div class="body">${esc(rec.text)}</div>` : ''}${attachHtml(rec.attach)}<div class="t">${hhmm(rec.ts)}</div></div>`;
   else if (rec.kind === 'forward') {
     const items = (rec.forward?.items || []).map(it => {
@@ -628,7 +663,7 @@ function showHome(){
   homeMode = true;
   const hv = $('homeView'); if (!hv) return;
   hv.style.display = 'flex';
-  ['head','statusbar','msgs','modeTabs','inputbar','selbar','pendingWrap'].forEach(id => { const e = $(id); if (e) e.style.display = 'none'; });
+  ['head','statusbar','topicBar','msgs','modeTabs','inputbar','selbar','pendingWrap'].forEach(id => { const e = $(id); if (e) e.style.display = 'none'; });
   document.querySelectorAll('#groups .item.active, #contacts .item.active').forEach(d => d.classList.remove('active'));
   renderHome();
 }
@@ -636,7 +671,6 @@ function hideHome(){
   homeMode = false;
   const hv = $('homeView'); if (hv) hv.style.display = 'none';
   ['head','statusbar','msgs','modeTabs','inputbar'].forEach(id => { const e = $(id); if (e) e.style.display = ''; });
-  renderStatusBar();
 }
 function renderHome(){
   const hv = $('homeView'); if (!hv) return;
@@ -808,7 +842,7 @@ function renderStatusBar(){
 // 议题操作栏：并排对比 / 已采用提示（P2）
 function renderTopicBar(tp){
   const bar = $('topicBar'); if (!bar) return;
-  if (!tp || !tp.revealedAt) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
+  if (homeMode || !tp || !tp.revealedAt) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
   const sel = tp.slots.find(s => s.memberId === tp.selectedSlotId);
   const selText = sel ? `<span class="tb-sel">已采用：<b>${esc((memberById(sel.memberId) || {}).name || sel.memberId)}</b></span>` : `<span class="tb-hint">还没选稿</span>`;
   bar.style.display = 'flex';
@@ -1139,7 +1173,7 @@ function openMemberMenu(e, m){
   menu.onclick = (ev) => {
     if (!ev.target.dataset.m) return;
     menu.style.display = 'none';
-    openMemberProfile(m);
+    openMemberCard(m);
   };
 }
 function openMemberProfile(m){
@@ -1186,6 +1220,185 @@ function openMemberProfile(m){
   };
 }
 
+// ---------- 人物卡（照 AIROOM 的人物卡布局：立绘 + 头像 + 简介 + 代表色 + 人设） ----------
+async function fileToB64(f){
+  return new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => { const s = String(fr.result || ''); res(s.slice(s.indexOf(',') + 1)); }; fr.onerror = rej; fr.readAsDataURL(f); });
+}
+async function pickImageFile(){
+  return new Promise((resolve) => {
+    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/png,image/jpeg,image/webp,image/gif';
+    inp.onchange = async () => {
+      const f = inp.files && inp.files[0]; if (!f) return resolve(null);
+      try { const data = await fileToB64(f); const r = await apiPost('/api/upload', { name: f.name, mime: f.type, data }); resolve(r.ok ? r.url : null); }
+      catch (e) { resolve(null); }
+    };
+    inp.click();
+  });
+}
+function openMemberCard(m){
+  const provs = Object.keys(CATALOG); if (!provs.includes(m.provider)) provs.unshift(m.provider);
+  const COLORS = ['#d9692f','#7b6fd6','#3c66d9','#2b8a98','#a35bdb','#c9463a','#3f8a5c','#9a7408','#6e6156','#2b231e'];
+  let avatar = m.avatar || '', portrait = m.portrait || '', color = m.color || '';
+  let zoom = Number(m.portraitZoom) || 1, ox = Number(m.portraitX) || 0, oy = Number(m.portraitY) || 0;
+  const applyTransform = () => {
+    const img = document.getElementById('mcPImg'); if (!img) return;
+    img.style.transform = `translate(-50%,-50%) translate(${ox}px,${oy}px) scale(${zoom})`;
+    const z = document.getElementById('mcZoom');
+    if (z) z.innerHTML = `立绘 <b>${Math.round(zoom * 100)}%</b>`;
+  };
+  const box = $('modalBox');
+  const oldWidth = box.style.width;
+  box.style.width = '720px';
+  box.innerHTML = `<h3>人物卡 · ${esc(m.name)}</h3>
+   <div class="mc-wrap">
+     <div class="mc-left">
+       <div class="mc-portrait" id="mcPortrait">${portrait
+         ? `<img class="mc-pimg" id="mcPImg" src="${esc(portrait)}"><div class="mc-zoom" id="mcZoom">立绘 <b>${Math.round(zoom * 100)}%</b></div><span class="mc-reset" id="mcReset">恢复默认</span>`
+         : '<span>点这里上传立绘<br><small>PNG / JPG / WebP</small></span>'}</div>
+       <div class="mc-ava-row">
+         <div class="mc-ava" id="mcAva" title="点击上传头像">${avatar ? `<img src="${esc(avatar)}">` : esc(m.emoji || m.name[0])}</div>
+         <div class="mc-ava-info"><b>${esc(m.name)}</b><span>${esc(m.model)}</span></div>
+       </div>
+       <button class="mc-crop" id="mcCrop">⤓ 用立绘做头像</button>
+     </div>
+     <div class="mc-right">
+       <label class="mc-lab">名字</label>
+       <input id="mcName" value="${esc(m.name)}" class="mc-in">
+       <label class="mc-lab">一句话介绍（显示在成员列表）</label>
+       <input id="mcTagline" value="${esc(m.tagline || '')}" placeholder="例如：收到！马上开工～" class="mc-in">
+       <label class="mc-lab">代表色</label>
+       <div class="mc-colors">${COLORS.map(c => `<span class="mc-color${c === color ? ' on' : ''}" data-c="${c}" style="background:${c}"></span>`).join('')}<span class="mc-color mc-auto${color ? '' : ' on'}" data-c="">自动</span></div>
+       <label class="mc-lab">怎么称呼你（全部成员共用）</label>
+       <input id="mcAddr" value="${esc(appAddressing)}" placeholder="MD" class="mc-in">
+       <label class="mc-lab">人设与说话风格 <span class="mc-link" id="mcImport">从文件导入</span></label>
+       <textarea id="mcPersona" rows="5" class="mc-in" placeholder="例如：你是团队里的审稿人，性格沉稳，说话简洁。先指出最重要的问题，再给修改建议。">${esc(m.persona || '')}</textarea>
+       <div class="mc-two">
+         <div><label class="mc-lab">线路</label><select id="mcProv" class="mc-in">${provs.map(x => `<option value="${esc(x)}"${x === m.provider ? ' selected' : ''}>${esc(x)}</option>`).join('')}</select></div>
+         <div><label class="mc-lab">模型</label><select id="mcModel" class="mc-in"></select></div>
+       </div>
+     </div>
+   </div>
+   <div class="foot"><button id="mcDel" class="mc-del">从所有群移除</button><button id="mcCancel">取消</button><button class="primary" id="mcSave">保存人物卡</button></div>`;
+  $('modal').style.display = 'flex';
+  const close = () => { box.style.width = oldWidth; $('modal').style.display = 'none'; };
+  $('mcCancel').onclick = close;
+  $('mcDel').onclick = () => { close(); openRemoveMember(); };
+  $('mcPortrait').onclick = async () => {
+    if (portrait) return;                                  // 已经有图时点击不重传，用下面的"重新上传"更安全
+    const u = await pickImageFile();
+    if (!u) return;
+    portrait = u; zoom = 1; ox = 0; oy = 0;
+    $('mcPortrait').innerHTML = `<img class="mc-pimg" id="mcPImg" src="${esc(u)}"><div class="mc-zoom" id="mcZoom">立绘 <b>100%</b></div><span class="mc-reset" id="mcReset">恢复默认</span>`;
+    wirePortrait();
+  // 按当前立绘的缩放/位置，裁一块方形做头像（等价于"调好立绘，头像跟着变"）
+  $('mcCrop').onclick = async (e) => {
+    e.stopPropagation();
+    const img = document.getElementById('mcPImg');
+    if (!img || !img.complete || !img.naturalWidth) { alert('先上传一张立绘'); return; }
+    const box = $('mcPortrait');
+    const bw = box.clientWidth, bh = box.clientHeight, S = Math.min(bw, bh);
+    const OUT = 460, k = OUT / S;
+    const s0 = bh / img.naturalHeight;                 // 立绘"贴高度"时的基础缩放
+    const cv = document.createElement('canvas');
+    cv.width = OUT; cv.height = OUT;
+    const ctx = cv.getContext('2d');
+    ctx.translate(OUT / 2 + ox * k, OUT / 2 + oy * k);
+    ctx.scale(s0 * zoom * k, s0 * zoom * k);
+    ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
+    const dataUrl = cv.toDataURL('image/png');
+    const b = $('mcCrop'); b.disabled = true; b.textContent = '裁切中…';
+    const up = await apiPost('/api/upload', { name: 'avatar.png', mime: 'image/png', data: dataUrl.split(',')[1] });
+    b.disabled = false; b.textContent = '⤓ 用立绘做头像';
+    if (!up.ok) { alert('生成头像失败：' + (up.error || '未知')); return; }
+    avatar = up.url;
+    $('mcAva').innerHTML = `<img src="${esc(up.url)}">`;
+    b.textContent = '✓ 已生成头像';
+    setTimeout(() => { b.textContent = '⤓ 用立绘做头像'; }, 1500);
+  };
+  };
+  function wirePortrait(){
+    const box = $('mcPortrait'), img = $('mcPImg');
+    if (!box || !img) return;
+    applyTransform();
+    let dragging = false, sx = 0, sy = 0, bx = 0, by = 0;
+    img.onmousedown = (e) => { e.preventDefault(); e.stopPropagation(); dragging = true; sx = e.clientX; sy = e.clientY; bx = ox; by = oy; img.style.cursor = 'grabbing'; };
+    window.addEventListener('mousemove', (e) => { if (!dragging) return; ox = bx + (e.clientX - sx); oy = by + (e.clientY - sy); applyTransform(); });
+    window.addEventListener('mouseup', () => { if (dragging) { dragging = false; img.style.cursor = 'grab'; } });
+    box.onwheel = (e) => { e.preventDefault(); zoom = Math.max(0.5, Math.min(4, zoom * (e.deltaY < 0 ? 1.08 : 0.93))); applyTransform(); };
+    const rs = $('mcReset');
+    if (rs) rs.onclick = (e) => { e.stopPropagation(); zoom = 1; ox = 0; oy = 0; applyTransform(); };
+  }
+  wirePortrait();
+  // 按当前立绘的缩放/位置，裁一块方形做头像（等价于"调好立绘，头像跟着变"）
+  $('mcCrop').onclick = async (e) => {
+    e.stopPropagation();
+    const img = document.getElementById('mcPImg');
+    if (!img || !img.complete || !img.naturalWidth) { alert('先上传一张立绘'); return; }
+    const box = $('mcPortrait');
+    const bw = box.clientWidth, bh = box.clientHeight, S = Math.min(bw, bh);
+    const OUT = 460, k = OUT / S;
+    const s0 = bh / img.naturalHeight;                 // 立绘"贴高度"时的基础缩放
+    const cv = document.createElement('canvas');
+    cv.width = OUT; cv.height = OUT;
+    const ctx = cv.getContext('2d');
+    ctx.translate(OUT / 2 + ox * k, OUT / 2 + oy * k);
+    ctx.scale(s0 * zoom * k, s0 * zoom * k);
+    ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
+    const dataUrl = cv.toDataURL('image/png');
+    const b = $('mcCrop'); b.disabled = true; b.textContent = '裁切中…';
+    const up = await apiPost('/api/upload', { name: 'avatar.png', mime: 'image/png', data: dataUrl.split(',')[1] });
+    b.disabled = false; b.textContent = '⤓ 用立绘做头像';
+    if (!up.ok) { alert('生成头像失败：' + (up.error || '未知')); return; }
+    avatar = up.url;
+    $('mcAva').innerHTML = `<img src="${esc(up.url)}">`;
+    b.textContent = '✓ 已生成头像';
+    setTimeout(() => { b.textContent = '⤓ 用立绘做头像'; }, 1500);
+  };
+  $('mcAva').onclick = async () => { const u = await pickImageFile(); if (u) { avatar = u; $('mcAva').innerHTML = `<img src="${esc(u)}">`; } };
+  box.querySelectorAll('.mc-color').forEach(el => {
+    el.onclick = () => {
+      color = el.dataset.c || '';
+      box.querySelectorAll('.mc-color').forEach(x => x.classList.toggle('on', x === el));
+    };
+  });
+  $('mcImport').onclick = () => {
+    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.md,.txt,text/plain';
+    inp.onchange = async () => {
+      const f = inp.files && inp.files[0]; if (!f) return;
+      const txt = await f.text();
+      $('mcPersona').value = txt.slice(0, 2000);
+    };
+    inp.click();
+  };
+  const fillModels = () => {
+    const p = $('mcProv').value;
+    const list = (CATALOG[p] || []).slice();
+    if (p === m.provider && !list.includes(m.model)) list.unshift(m.model);
+    $('mcModel').innerHTML = list.map(x => `<option value="${esc(x)}">${esc(x)}</option>`).join('');
+    if (p === m.provider) $('mcModel').value = m.model;
+  };
+  $('mcProv').onchange = fillModels;
+  fillModels();                                  // 打开就要填一次，否则下拉是空的（2026-10-20 踩过）
+  $('mcSave').onclick = async () => {
+    if (!$('mcModel').value) { alert('模型下拉是空的：先确认网络能取到模型目录，或换一个线路'); return; }
+    const r = await apiPost('/api/members/update', {
+      id: m.id, name: $('mcName').value, emoji: m.emoji || '',
+      persona: $('mcPersona').value, tagline: $('mcTagline').value,
+      avatar, portrait, color, provider: $('mcProv').value, model: $('mcModel').value,
+      portraitZoom: zoom, portraitX: ox, portraitY: oy,
+    });
+    if (!r.ok) { alert('保存失败：' + (r.error || '未知')); return; }
+    const addr = $('mcAddr').value.trim();
+    if (addr && addr !== appAddressing) {
+      const ra = await apiPost('/api/app-addressing', { addressing: addr });
+      if (ra.ok) appAddressing = ra.addressing;
+    }
+    M = M.map(x => x.id === r.member.id ? r.member : x);
+    close();
+    renderSide(); renderStatusBar();
+    if (active.startsWith('dm:') && active.slice(3) === m.id) refreshHeader();
+  };
+}
 // ---------- 搜索 ----------
 function openSearch(){
   const box = $('modalBox');

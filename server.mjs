@@ -249,8 +249,10 @@ function systemPrompt(member, room, extra = '') {
         ? '\n本会话处于「自由模式」：一群人在闲聊，谁开口是随机决定的、不一定轮到你，也不是每个人都必须说。**像发微信那样说话：一两句，别写小作文，别给自己加"先分析再总结"的结构。** 可以接任何人的话，也可以换话题、翻旧账、只说半句、表示不同意；没什么想补的就回「沉默」。不要每句都追着上一句打补丁，真人聊天是会跳的。'
         : '';
   const peers = room.kind === 'group' ? `当前群「${room.name}」里的成员：${room.members.map(m => m.name).join('、')}。` : '';
+  const addressing = roomSettings._app?.addressing || 'MD';
+  const callLine = `\n用户希望你称呼 TA 为「${addressing}」，需要称呼时就这么叫。`;
   return `你是多模型讨论室「圆桌」的成员「${member.name}」（底层模型 ${member.provider}/${member.model}）。${persona}${modeLine}
-${peers}你在一${room.kind === 'group' ? '个群聊' : '对一私聊'}里，可以有其他 AI 成员和你观点不同；可以赞同、反驳、补充任何成员，自然提及对方名字。
+${peers}你在一${room.kind === 'group' ? '个群聊' : '对一私聊'}里，可以有其他 AI 成员和你观点不同；可以赞同、反驳、补充任何成员，自然提及对方名字。${callLine}
 发言要简洁、口语化（一般不超过 200 字），不要 Markdown 标题和列表。
 历史里用「名字：内容」标记谁说了什么，那是记录格式，不是你的发言格式。
 历史里以〔系统记录〕开头的是系统提示（建群、模式说明、调整顺序之类），那**不是你自己的发言**，不要复述它、也不要接着它往下写。
@@ -729,7 +731,7 @@ const server = http.createServer((req, res) => {
   const u = new URL(req.url, 'http://x');
   if (u.pathname === '/' && req.method === 'GET') { res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }); return res.end(HTML); }
   if (u.pathname === '/api/state' && req.method === 'GET') {
-    return json(res, { members, rooms, maxRounds: MAX_ROUNDS, states: mstate, netOnline, settings: roomSettings, histDefault: HIST_CHARS, appTitle: roomSettings._app?.title || '圆桌', theme: roomSettings._app?.theme || null, topics: Object.values(topics).map(publicTopic) });
+    return json(res, { members, rooms, maxRounds: MAX_ROUNDS, states: mstate, netOnline, settings: roomSettings, histDefault: HIST_CHARS, appTitle: roomSettings._app?.title || '圆桌', theme: roomSettings._app?.theme || null, addressing: roomSettings._app?.addressing || 'MD', topics: Object.values(topics).map(publicTopic) });
   }
   if (u.pathname === '/api/messages' && req.method === 'GET') {
     const room = u.searchParams.get('room') || 'free';
@@ -1104,7 +1106,20 @@ const server = http.createServer((req, res) => {
       } catch (e) { json(res, { ok: false, error: e.message }); }
     });
     return;
-  }  // 暂停接话：当前这句说完就停起新的，但这一轮不作废（和「结束讨论」区分开）
+  }  if (u.pathname === '/api/app-addressing' && req.method === 'POST') {
+    let body = ''; req.on('data', c => body += c);
+    req.on('end', () => {
+      try {
+        const { addressing } = JSON.parse(body);
+        const v = String(addressing || '').trim().slice(0, 20) || 'MD';
+        roomSettings._app = { ...(roomSettings._app || {}), addressing: v };
+        saveSettings();
+        json(res, { ok: true, addressing: v });
+      } catch (e) { json(res, { ok: false, error: e.message }); }
+    });
+    return;
+  }
+  // 暂停接话：当前这句说完就停起新的，但这一轮不作废（和「结束讨论」区分开）
   if (u.pathname === '/api/room-pause' && req.method === 'POST') {
     let body = ''; req.on('data', c => body += c);
     req.on('end', () => {
@@ -1193,7 +1208,11 @@ const server = http.createServer((req, res) => {
     req.on('end', () => {
       try {
         const { room, deleteRoom } = JSON.parse(body);
-        if (!roomInfo(room)) return json(res, { ok: false, error: '会话不存在' });
+        // 允许清理"孤儿记录"：房间或成员已删除，但聊天记录还在（dm: 与已删群都属于这种）
+        if (!roomInfo(room) && !room.startsWith('dm:') && !rooms[room]) {
+          const had = log.some(r => r.room === room);
+          if (!had) return json(res, { ok: false, error: '会话不存在' });
+        }
         const before = log.length;
         for (let i = log.length - 1; i >= 0; i--) if (log[i].room === room) log.splice(i, 1);
         if (deleteRoom && !['work', 'free'].includes(room) && rooms[room]) { delete rooms[room]; saveRooms(); broadcast({ type: 'rooms', rooms }); }
@@ -1251,7 +1270,7 @@ const server = http.createServer((req, res) => {
     let body = ''; req.on('data', c => body += c);
     req.on('end', () => {
       try {
-        const { id, name, emoji, persona, provider, model } = JSON.parse(body);
+        const { id, name, emoji, persona, provider, model, avatar, portrait, tagline, color, portraitZoom, portraitX, portraitY } = JSON.parse(body);
         const mb = members.find(m => m.id === id);
         if (!mb) return json(res, { ok: false, error: '成员不存在' });
         if (name !== undefined) {
@@ -1264,9 +1283,32 @@ const server = http.createServer((req, res) => {
           const p = String(persona).trim().slice(0, 300);
           if (p) mb.persona = p; else delete mb.persona;
         }
+        if (avatar !== undefined) {
+          const a = String(avatar).trim();
+          if (/^\/uploads\/[\w.\-%]+$/.test(a)) mb.avatar = a; else delete mb.avatar;
+        }
+        if (portrait !== undefined) {
+          const p2 = String(portrait).trim();
+          if (/^\/uploads\/[\w.\-%]+$/.test(p2)) mb.portrait = p2; else delete mb.portrait;
+        }
+        if (portraitZoom !== undefined) {
+          const z = Number(portraitZoom);
+          if (Number.isFinite(z)) mb.portraitZoom = Math.max(0.5, Math.min(4, z));
+        }
+        if (portraitX !== undefined) { const x = Number(portraitX); if (Number.isFinite(x)) mb.portraitX = Math.round(x); }
+        if (portraitY !== undefined) { const y = Number(portraitY); if (Number.isFinite(y)) mb.portraitY = Math.round(y); }
+        if (tagline !== undefined) {
+          const tg = String(tagline).trim().slice(0, 40);
+          if (tg) mb.tagline = tg; else delete mb.tagline;
+        }
+        if (color !== undefined) {
+          const c2 = String(color).trim();
+          if (/^#[0-9a-fA-F]{6}$/.test(c2)) mb.color = c2; else delete mb.color;
+        }
         if (provider !== undefined && model !== undefined) {
-          const p = String(provider), mo = String(model);
+          const p = String(provider), mo = String(model).trim();
           if (!ROUTES[p]) return json(res, { ok: false, error: '线路不合法' });
+          if (!mo) return json(res, { ok: false, error: '模型不能为空' });   // 2026-10-20 踩过：下拉没选项时空值被写进去，成员就废了
           mb.provider = p; mb.model = mo;
         }
         saveMembers();
