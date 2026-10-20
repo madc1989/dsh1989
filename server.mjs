@@ -251,8 +251,25 @@ function systemPrompt(member, room, extra = '') {
   const peers = room.kind === 'group' ? `当前群「${room.name}」里的成员：${room.members.map(m => m.name).join('、')}。` : '';
   const addressing = roomSettings._app?.addressing || 'MD';
   const callLine = `\n用户希望你称呼 TA 为「${addressing}」，需要称呼时就这么叫。`;
-  return `你是多模型讨论室「圆桌」的成员「${member.name}」（底层模型 ${member.provider}/${member.model}）。${persona}${modeLine}
-${peers}你在一${room.kind === 'group' ? '个群聊' : '对一私聊'}里，可以有其他 AI 成员和你观点不同；可以赞同、反驳、补充任何成员，自然提及对方名字。${callLine}
+  // 人物卡的档案：语气要硬，否则模型（尤其小模型）会顺着"我什么都不知道"的人设答非所问
+  const profileLine = (() => {
+    const parts = [];
+    if (member.gender) parts.push(`性别 ${member.gender}`);
+    if (member.age) parts.push(`年龄 ${member.age} 岁`);
+    if (member.outfit) parts.push(`穿着 ${member.outfit}`);
+    if (member.role) parts.push(`在这间 AI 聊天室主要负责 ${member.role}`);
+    if (!parts.length) return '';
+    return `\n【你的档案】${parts.join('；')}。别人问起这些，照实回答，不要说"不知道""没数过"。`;
+  })();
+  // 人物卡里设的"和其他成员的关系"：只写进提示词，不做强制
+  const relLine = (() => {
+    const rel = member.relations || {};
+    const rows = room.members.filter(x => x.id !== member.id && rel[x.id])
+      .map(x => `${x.name}${x.age ? `（${x.age}岁）` : ''}：${rel[x.id]}`);
+    return rows.length ? `\n你和他们的关系：${rows.join('；')}。` : '';
+  })();
+  return `你是多模型讨论室「圆桌」的成员「${member.name}」（底层模型 ${member.provider}/${member.model}）。${profileLine}${persona}${modeLine}
+${peers}你在一${room.kind === 'group' ? '个群聊' : '对一私聊'}里，可以有其他 AI 成员和你观点不同；可以赞同、反驳、补充任何成员，自然提及对方名字。${callLine}${relLine}
 发言要简洁、口语化（一般不超过 200 字），不要 Markdown 标题和列表。
 历史里用「名字：内容」标记谁说了什么，那是记录格式，不是你的发言格式。
 历史里以〔系统记录〕开头的是系统提示（建群、模式说明、调整顺序之类），那**不是你自己的发言**，不要复述它、也不要接着它往下写。
@@ -462,10 +479,11 @@ function pickSpeaker(room, seedText, prevId, fromUser, exclude) {
     if (named) return named;
   }
   const w = roomSettings[room.id]?.talkativeness || {};
-  const willing = avail.filter(mb => Number(w[mb.id] ?? 50) > 0);   // ② 倾向 0 = 不主动开口（被点名仍会说）
+  const talkOf = (mb) => Number(mb.talk ?? 50);                    // 只用成员卡里的"发言积极度"（全局）
+  const willing = avail.filter(mb => talkOf(mb) > 0);              // ② 0 = 不主动开口（被点名仍会说）
   const pool = willing.length ? willing : avail;                    // ③ 全员 0 时兜底
   const weightOf = (mb) => {
-    let base = willing.length ? Math.max(1, Number(w[mb.id] ?? 50)) : 1;
+    let base = willing.length ? Math.max(1, talkOf(mb)) : 1;
     if (mb.id === prevId) base *= 0.5;              // 刚说过的人权重减半：允许连说，但不让他独霸
     else if (!fromUser && isNamed(mb)) base *= 2;   // 模型互称：加权但不必中，避免二人乒乓
     return base;
@@ -743,7 +761,7 @@ const HTML = readFileSync(join(ROOT, 'public', 'index.html'));
 const json = (res, obj, code = 200) => { res.writeHead(code, { 'content-type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(obj)); };
 const server = http.createServer((req, res) => {
   const u = new URL(req.url, 'http://x');
-  if (u.pathname === '/' && req.method === 'GET') { res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }); return res.end(HTML); }
+  if (u.pathname === '/' && req.method === 'GET') { res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store, must-revalidate' }); return res.end(HTML); }
   if (u.pathname === '/api/state' && req.method === 'GET') {
     return json(res, { members, rooms, maxRounds: MAX_ROUNDS, states: mstate, netOnline, settings: roomSettings, histDefault: HIST_CHARS, appTitle: roomSettings._app?.title || '圆桌', theme: roomSettings._app?.theme || null, addressing: roomSettings._app?.addressing || 'MD', topics: Object.values(topics).map(publicTopic) });
   }
@@ -1301,7 +1319,7 @@ const server = http.createServer((req, res) => {
     let body = ''; req.on('data', c => body += c);
     req.on('end', () => {
       try {
-        const { id, name, emoji, persona, provider, model, avatar, portrait, tagline, color, portraitZoom, portraitX, portraitY } = JSON.parse(body);
+        const { id, name, emoji, persona, provider, model, avatar, portrait, tagline, color, portraitZoom, portraitX, portraitY, talk, acts, relations, routine, gender, age, outfit, role } = JSON.parse(body);
         const mb = members.find(m => m.id === id);
         if (!mb) return json(res, { ok: false, error: '成员不存在' });
         if (name !== undefined) {
@@ -1328,6 +1346,31 @@ const server = http.createServer((req, res) => {
         }
         if (portraitX !== undefined) { const x = Number(portraitX); if (Number.isFinite(x)) mb.portraitX = Math.round(x); }
         if (portraitY !== undefined) { const y = Number(portraitY); if (Number.isFinite(y)) mb.portraitY = Math.round(y); }
+        if (gender !== undefined) { const g = String(gender || '').trim().slice(0, 6); if (g) mb.gender = g; else delete mb.gender; }
+        if (age !== undefined) { const a = Number(age); if (Number.isFinite(a) && a > 0 && a < 999) mb.age = Math.round(a); else delete mb.age; }
+        if (outfit !== undefined) { const s = String(outfit || '').trim().slice(0, 40); if (s) mb.outfit = s; else delete mb.outfit; }
+        if (role !== undefined) { const s = String(role || '').trim().slice(0, 30); if (s) mb.role = s; else delete mb.role; }
+        if (talk !== undefined) { const n = Number(talk); if (Number.isFinite(n)) mb.talk = Math.max(0, Math.min(100, Math.round(n))); }
+        if (acts !== undefined) {
+          const arr = Array.isArray(acts) ? acts.map(x => String(x).trim().slice(0, 20)).filter(Boolean).slice(0, 8) : [];
+          if (arr.length) mb.acts = arr; else delete mb.acts;
+        }
+        if (relations !== undefined && relations && typeof relations === 'object') {
+          const rel = {};
+          for (const [k, v] of Object.entries(relations)) {
+            const s = String(v || '').trim().slice(0, 40);
+            if (s && memberById(k)) rel[k] = s;
+          }
+          if (Object.keys(rel).length) mb.relations = rel; else delete mb.relations;
+        }
+        if (routine !== undefined && routine && typeof routine === 'object') {
+          const rt = {};
+          for (const k of ['morning', 'day', 'evening', 'night']) {
+            const s = String(routine[k] || '').trim().slice(0, 30);
+            if (s) rt[k] = s;
+          }
+          if (Object.keys(rt).length) mb.routine = rt; else delete mb.routine;
+        }
         if (tagline !== undefined) {
           const tg = String(tagline).trim().slice(0, 40);
           if (tg) mb.tagline = tg; else delete mb.tagline;

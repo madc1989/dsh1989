@@ -342,7 +342,7 @@
   .topic-panel .tp-wait { font-size:12px; color:var(--ink-3); }
 /* 主界面 */
   #homeView { flex:1; display:flex; align-items:flex-start; justify-content:center; overflow:auto; padding:40px 24px; }
-  .home-wrap { width:100%; max-width:760px; text-align:center; }
+  .home-wrap { width:100%; max-width:1060px; text-align:center; }
   .home-wrap .greet { display:inline-block; font-size:12px; color:var(--ink-3); background:var(--surface); border:1px solid var(--line); border-radius:999px; padding:4px 14px; margin-bottom:18px; }
   .home-wrap h1 { font-size:32px; line-height:1.4; color:var(--ink); margin:0 0 10px; font-weight:700; }
   .home-wrap p.sub { font-size:14px; color:var(--ink-3); margin:0 auto 22px; max-width:520px; line-height:1.75; }
@@ -410,6 +410,90 @@
 .mc-crop { width:100%; margin-top:10px; font-size:12px; padding:7px 0; border-radius:var(--r-sm); border:1px solid var(--line); background:var(--surface); color:var(--ink-2); cursor:pointer; }
   .mc-crop:hover { background:var(--paper); border-color:var(--line-strong); }
   .mc-crop:disabled { opacity:.6; cursor:default; }
+/* 主界面房间卡（带立绘的人物卡） */
+  .home-wrap .hrooms { display:flex; gap:16px; flex-wrap:wrap; justify-content:center; }
+  .home-wrap p.sub { max-width:640px; }
+  .hrcard { width:190px; border-radius:var(--r-lg); overflow:hidden; border:1px solid var(--line); background:var(--surface); box-shadow:var(--shadow-sm); cursor:pointer; transition:transform .18s var(--ease), box-shadow .18s var(--ease); }
+  .hrcard:hover { transform:translateY(-4px); box-shadow:var(--shadow); }
+  .hr-media { position:relative; height:240px; overflow:hidden; background:var(--surface-2); }
+  .hr-media img { position:absolute; left:50%; top:50%; height:100%; width:auto; transform-origin:center; }
+  .hr-info { padding:10px 12px 12px; text-align:left; background:var(--surface); }
+  .hr-avas { display:flex; gap:4px; margin-bottom:6px; }
+  .hr-avas .ava { width:20px; height:20px; font-size:10px; border:1px solid var(--surface); }
+  .hr-info b { display:block; font-size:13px; color:var(--ink); margin-bottom:2px; }
+  .hr-info span { display:block; font-size:11px; color:var(--ink-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.hr-media.empty { display:flex; align-items:center; justify-content:center; }
+  .hr-media.empty .ava { width:64px; height:64px; font-size:26px; }
+  .home-wrap .hroomrows { display:flex; flex-direction:column; gap:8px; max-width:460px; }
+  .hrow { display:flex; align-items:center; gap:9px; padding:10px 14px; border:1px solid var(--line); border-radius:var(--r-md); background:var(--surface); cursor:pointer; text-align:left; }
+  .hrow:hover { background:var(--paper); border-color:var(--line-strong); }
+  .hrow .hd { font-size:14px; }
+  .hrow b { font-size:13px; color:var(--ink); }
+  .hrow .hs { margin-left:auto; font-size:11px; color:var(--ink-3); }
+/* 空群：叠排头像 + 群名 + 两个动作（照 AIROOM 的空态） */
+  .home-empty.empty-room { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; padding:40px 20px; }
+  .home-empty .eavas { display:flex; }
+  .home-empty .eavas .ava { width:56px; height:56px; font-size:20px; border:3px solid var(--surface); margin-left:-14px; box-shadow:var(--shadow-sm); }
+  .home-empty .eavas .ava:first-child { margin-left:0; }
+  .home-empty.empty-room h1 { font-size:22px; margin:0; color:var(--ink); }
+  .home-empty.empty-room .acts { display:flex; gap:10px; margin-top:4px; }
+  .home-empty.empty-room .acts button { font-size:13px; padding:9px 18px; border-radius:var(--r-md); border:1px solid var(--line); background:var(--surface); color:var(--ink-2); cursor:pointer; }
+  .home-empty.empty-room .acts button.main { background:var(--brand); border-color:var(--brand); color:var(--brand-ink); }
+/* 输入框：照 AIROOM 的"大圆角框 + 框内底栏 + 圆形发送" */
+  #inputbar { width:calc(100% - 48px); max-width:760px; margin:10px auto 16px; padding:8px 12px 8px; border:1px solid var(--line); border-radius:20px; background:var(--surface); box-shadow:var(--shadow-sm); display:flex; flex-direction:column; gap:2px; position:relative; box-sizing:border-box; }
+  #inputbar #in { border:none; background:transparent; padding:9px 4px 4px; font-size:14px; width:100%; outline:none; font-family:inherit; color:var(--ink); }
+  #inputbar #in::placeholder { color:var(--ink-4); }
+  #ibBottom { display:flex; align-items:center; gap:8px; padding:2px 0 2px; }
+  #ibBottom #attachBtn { width:28px; height:28px; border-radius:50%; border:1px solid var(--line); background:transparent; color:var(--ink-3); font-size:16px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; }
+  #ibBottom #attachBtn:hover { background:var(--paper); color:var(--ink); }
+  #ibBottom #modeTabs { display:flex; gap:4px; margin:0; padding:0; background:transparent; border:none; }
+  #ibBottom #modeTabs button { font-size:11px; padding:3px 10px; border-radius:999px; border:1px solid transparent; background:transparent; color:var(--ink-3); cursor:pointer; }
+  #ibBottom #modeTabs button:hover { background:var(--paper); color:var(--ink-2); }
+  #ibBottom #modeTabs button.on { background:var(--lamp-soft); border-color:#e8c98d; color:#8a5a13; }
+  #ibBottom .mt-hint { font-size:11px; color:var(--ink-4); }
+  #ibBottom #send { margin-left:auto; width:30px; height:30px; border-radius:50%; border:none; background:var(--brand); color:var(--brand-ink); font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; }
+  #ibBottom #send:hover { filter:brightness(1.06); }
+  #ibBottom #send:disabled { opacity:.5; cursor:default; }
+#inputbar #in { resize:none; overflow-y:auto; line-height:1.6; min-height:26px; max-height:240px; }
+  .ib-grip { position:absolute; right:10px; top:3px; width:24px; height:10px; cursor:nwse-resize; opacity:.4; z-index:2; }
+  .ib-grip:hover { opacity:.9; }
+  .ib-grip::after { content:''; display:block; width:100%; height:3px; border-radius:2px; background:var(--line-strong); margin-top:3px; }
+/* 人物浮卡 */
+  #memberPop { position:fixed; z-index:60; width:268px; }
+  #memberPop .mp-card { position:relative; background:var(--surface); border:1px solid var(--line); border-radius:var(--r-lg); box-shadow:var(--shadow); overflow:hidden; }
+  #memberPop .mp-close { position:absolute; right:8px; top:8px; z-index:2; width:24px; height:24px; border-radius:50%; border:none; background:rgba(255,255,255,.75); color:var(--ink-2); cursor:pointer; font-size:12px; }
+  #memberPop .mp-hero { position:relative; height:132px; background:var(--surface-2); overflow:hidden; }
+  #memberPop .mp-hero img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:50% 14%; }
+  #memberPop .mp-hero-ava { display:flex; align-items:center; justify-content:center; height:100%; }
+  #memberPop .mp-hero-ava .ava { width:64px; height:64px; font-size:26px; }
+  #memberPop .mp-hero::after { content:''; position:absolute; inset:0; background:linear-gradient(180deg, rgba(0,0,0,0) 55%, rgba(0,0,0,.10) 100%); }
+  #memberPop .mp-body { padding:10px 14px 14px; }
+  #memberPop .mp-body b { font-size:15px; color:var(--ink); display:block; }
+  #memberPop .mp-sub { font-size:11px; color:var(--ink-3); }
+  #memberPop .mp-quote { font-size:12px; color:var(--ink-2); margin:8px 0 2px; }
+  #memberPop .mp-rows { margin:10px 0 12px; display:flex; flex-direction:column; gap:5px; }
+  #memberPop .mp-rows div { display:flex; font-size:12px; }
+  #memberPop .mp-rows em { font-style:normal; color:var(--ink-3); width:44px; flex-shrink:0; }
+  #memberPop .mp-rows span { color:var(--ink-2); }
+  #memberPop .mp-acts { display:flex; gap:8px; }
+  #memberPop .mp-acts button { flex:1; font-size:12px; padding:7px 0; border-radius:var(--r-sm); border:1px solid var(--line); background:var(--surface-2); color:var(--ink-2); cursor:pointer; }
+  #memberPop .mp-acts button.main { background:var(--brand); border-color:var(--brand); color:var(--brand-ink); }
+.mc-grid4 { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+  .mc-relbox { display:flex; flex-direction:column; gap:6px; }
+  .mc-relrow { display:flex; align-items:center; gap:8px; }
+  .mc-relrow span { font-size:12px; color:var(--ink-2); width:56px; flex-shrink:0; }
+  .mc-relrow .mc-in { flex:1; }
+#memberPop .mp-now { font-size:11px; color:var(--ink-3); margin-top:4px; }
+.js-err { position:fixed; left:16px; bottom:16px; z-index:999; max-width:70vw; padding:8px 12px; border-radius:8px; background:#7a1f16; color:#fff; font-size:12px; line-height:1.6; box-shadow:0 6px 20px rgba(0,0,0,.25); white-space:pre-wrap; }
+.msg .who { color:inherit; opacity:.7; }
+.mc-three { display:grid; grid-template-columns:80px 70px 1fr; gap:8px; align-items:end; }
+.sec-row { display:flex; align-items:center; gap:6px; }
+  .sec-row #memberPlus { margin-left:auto; width:20px; height:20px; border-radius:50%; border:1px solid var(--line); background:var(--surface); color:var(--ink-3); font-size:13px; line-height:1; cursor:pointer; padding:0; display:flex; align-items:center; justify-content:center; }
+  .sec-row #memberPlus:hover { background:var(--paper); color:var(--ink); }
+  #memberPlusMenu { display:none; position:absolute; z-index:46; right:10px; margin-top:6px; background:var(--surface); border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow); padding:5px; min-width:132px; }
+  #memberPlusMenu div { padding:8px 10px; font-size:13px; border-radius:7px; cursor:pointer; color:var(--ink-2); }
+  #memberPlusMenu div:hover { background:var(--paper); }
+  .sec-row { position:relative; }
 </style>
 </head>
 <body>
@@ -417,15 +501,18 @@
     <div id="sideHead"><b id="appTitle" title="点击重命名">圆桌</b><button id="plusBtn" title="新建 / 添加">＋</button></div>
     <div id="plusMenu">
       <div data-act="group">💬 新建群聊</div>
-      <div data-act="member">🤖 添加模型</div>
       <div data-act="topic">🧭 开议题</div>
       <div data-act="search">🔍 搜索</div>
-      <div data-act="delmember">🚫 删除模型</div>
     </div>
     <div id="sideScroll">
       <div class="sec">房间</div>
       <div id="groups"></div>
-      <div class="sec">成员</div>
+      <div class="sec sec-row">成员<button id="memberPlus" title="添加 / 删除成员">＋</button>
+        <div id="memberPlusMenu">
+          <div data-mact="add">🤖 添加模型</div>
+          <div data-mact="del">🚫 删除模型</div>
+        </div>
+      </div>
       <div id="contacts"></div>
     </div>
     <div id="sideFoot">
@@ -470,14 +557,7 @@
     <div id="msgs"></div>
     <div id="selbar"><span>已选 <b id="selcount">0</b> 条</span><button id="doFwd">转发…</button><button id="cancelSel">取消</button></div>
     <div id="pendingWrap"></div>
-    <div id="modeTabs">
-      <button data-mode="free">圆桌</button>
-      <button data-mode="isolated">独立</button>
-      <button data-mode="flow">自由</button>
-      <span class="mt-hint" id="mtHint">点一下切换本会话的讨论方式</span>
-    </div>
     <div id="inputbar">
-      <button id="attachBtn" title="发送表情 / 图片 / 视频 / 文件">＋</button>
       <div id="attachMenu">
         <div data-a="emoji">😊 表情</div>
         <div data-a="image">🖼 图片</div>
@@ -486,8 +566,18 @@
       </div>
       <div id="emojiPanel"></div>
       <div id="mentionPop"></div>
-      <input id="in" placeholder="说点什么…（输入 @ 选择成员）" autocomplete="off">
-      <button id="send">发送</button>
+      <div class="ib-grip" id="ibGrip" title="拖动可调整大小"></div>
+      <textarea id="in" rows="1" placeholder="说点什么… Enter 发送，@ 指定优先接话" autocomplete="off"></textarea>
+      <div id="ibBottom">
+        <button id="attachBtn" title="发送表情 / 图片 / 视频 / 文件">＋</button>
+        <div id="modeTabs">
+          <button data-mode="free" class="on">圆桌</button>
+          <button data-mode="isolated">独立</button>
+          <button data-mode="flow">自由</button>
+        </div>
+        <span class="mt-hint" id="mtHint">切换本会话的讨论方式</span>
+        <button id="send" title="发送">➤</button>
+      </div>
       <input type="file" id="pickImage" accept="image/*" style="display:none">
       <input type="file" id="pickVideo" accept="video/*" style="display:none">
       <input type="file" id="pickFile" style="display:none">
@@ -514,9 +604,22 @@ let loading = false, pendingRows = [], loadSeq = 0;   // 切房间时的加载�
 const colorOf = (n) => colorMap[n] ??= COLORS[Object.keys(colorMap).length % COLORS.length];
 const hhmm = (ts) => new Date(ts || Date.now()).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
 const esc = (s) => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-const ava = (name) => `<div class="ava" style="background:${colorOf(name)}">${esc(name[0])}</div>`;
+// 消息里的头像：能按名字找到成员就用他那张头像，否则退回首字母
+const ava = (name) => {
+  const mb = M.find(x => x.name === name);
+  if (mb) return avaM(mb);
+  return `<div class="ava" style="background:${colorOf(name)}">${esc(String(name || '?')[0])}</div>`;
+};
 // 成员头像：配了 emoji 就用 emoji，否则用名字首字
 const colorForName = (n) => { const mm = M.find(x => x.name === n); return (mm && mm.color) || colorOf(n); };
+// 气泡底色可能很深（比如 #6e6156），文字要跟着换，不然看不清
+const textOn = (hex) => {
+  const h = String(hex || '').replace('#', '');
+  if (h.length < 6) return '#2b231e';
+  const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return lum > 0.62 ? '#2b231e' : '#fffdfa';
+};
 const avaM = (m) => (m && m.avatar)
   ? `<div class="ava" style="background:${m.color || colorOf(m.name)};background-image:url('${esc(m.avatar)}');background-size:cover;background-position:center"></div>`
   : `<div class="ava" style="background:${(m && m.color) || colorOf(m && m.name || '')}">${esc((m && (m.emoji || m.name[0])) || '?')}</div>`;
@@ -561,7 +664,7 @@ function renderSide(){
     const d = document.createElement('div');
     d.className = 'item' + (active === 'dm:' + m.id ? ' active' : '') + (isOff(m) ? ' off' : '');
     const subline = m.tagline ? m.tagline : (esc(m.model) + (m.persona ? ' · 🎭' + esc(m.persona) : ''));
-    d.innerHTML = `${avaM(m)}<div class="t"><b>${esc(m.name)}</b><span>${m.tagline ? esc(m.tagline) : subline}</span></div><button class="more" title="个人资料">⋯</button>`;
+    d.innerHTML = `${avaM(m)}<div class="t"><b>${esc(m.name)}</b><span>${m.tagline ? esc(m.tagline) : subline}</span></div>`;
     const dot = document.createElement('i');
     const st = states[m.id] || {};
     dot.className = 'dot' + (isOff(m) ? ' off' : st.speaking ? ' typing' : '');
@@ -572,8 +675,7 @@ function renderSide(){
       d.querySelector('.ava').insertAdjacentHTML('beforeend', '<i class="unread"></i>');
       d.insertAdjacentHTML('beforeend', `<span class="badge">${n > 99 ? '99+' : n}</span>`);
     }
-    d.onclick = () => openRoom('dm:' + m.id);
-    d.querySelector('.more').onclick = (e) => { e.stopPropagation(); openMemberMenu(e, m); };
+    d.onclick = () => openMemberPop(m, d);
     $('contacts').appendChild(d);
   }
 }
@@ -587,7 +689,7 @@ function msgRow(rec){
   const row = document.createElement('div');
   row.className = 'row ' + (rec.kind === 'user' ? 'user' : rec.kind === 'system' ? 'system' : '');
   row.id = rec.id;
-  if (rec.kind === 'member') row.innerHTML = `${ava(rec.from)}<div class="msg" style="background:${colorForName(rec.from)}"><div class="who">${esc(rec.from)} · ${hhmm(rec.ts)}</div><div class="body">${esc(rec.text)}</div></div>`;
+  if (rec.kind === 'member') row.innerHTML = `${ava(rec.from)}<div class="msg" style="background:${colorForName(rec.from)};color:${textOn(colorForName(rec.from))}"><div class="who">${esc(rec.from)} · ${hhmm(rec.ts)}</div><div class="body">${esc(rec.text)}</div></div>`;
   else if (rec.kind === 'user') row.innerHTML = `<div class="msg">${rec.text ? `<div class="body">${esc(rec.text)}</div>` : ''}${attachHtml(rec.attach)}<div class="t">${hhmm(rec.ts)}</div></div>`;
   else if (rec.kind === 'forward') {
     const items = (rec.forward?.items || []).map(it => {
@@ -605,7 +707,10 @@ function msgRow(rec){
   return row;
 }
 async function openRoom(id){
-  if (homeMode) hideHome();
+  // 无条件退出主界面：标志和 DOM 可能不同步，进房间一定得把聊天区放出来
+  homeMode = false;
+  const _hv = $('homeView'); if (_hv) _hv.style.display = 'none';
+  ['head','statusbar','msgs','inputbar'].forEach(k => { const e = $(k); if (e) e.style.display = ''; });
   active = id;
   delete unread[id];                                  // 打开即清红点
   if (typeof closeMention === 'function') closeMention();
@@ -656,6 +761,16 @@ function renderTopicPanel(){
     await openRoom(active);
   };
 }
+// 前端出错时在右下角显示一行，别再"静默少一块东西"
+window.addEventListener('error', (e) => {
+  try {
+    const d = document.createElement('div');
+    d.className = 'js-err';
+    d.textContent = `JS 错误：${e.message}（第 ${e.lineno} 行）`;
+    document.body.appendChild(d);
+    setTimeout(() => d.remove(), 12000);
+  } catch (_) {}
+});
 // ---------- 主界面（点左上角标题进来） ----------
 let homeMode = false;
 function greetWord(){ const h = new Date().getHours(); return h < 6 ? '凌晨好' : h < 11 ? '早上好' : h < 14 ? '中午好' : h < 18 ? '下午好' : '晚上好'; }
@@ -677,12 +792,50 @@ function renderHome(){
   const roomIds = Object.keys(rooms).filter(k => !k.startsWith('t:') && rooms[k]);
   const topicRooms = Object.keys(rooms).filter(k => rooms[k] && rooms[k].topic);
   const online = M.filter(m => !isOff(m)).length;
+  // 成员卡：点开就是跟这个成员的私聊（照 AIROOM 主界面的人物卡）
+  const mcard = (m) => {
+    if (!m.portrait) {
+      return `<div class="hrcard" data-dm="${esc(m.id)}">
+        <div class="hr-media empty">${avaM(m)}</div>
+        <div class="hr-info"><b>${esc(m.name)}</b><span>${esc(m.tagline || m.model)}</span></div>
+      </div>`;
+    }
+    const z = Number(m.portraitZoom) || 1, ox = Number(m.portraitX) || 0, oy = Number(m.portraitY) || 0;
+    return `<div class="hrcard" data-dm="${esc(m.id)}">
+      <div class="hr-media"><img src="${esc(m.portrait)}" style="transform:translate(-50%,-50%) translate(${ox * 0.85}px,${oy * 0.85}px) scale(${z})"></div>
+      <div class="hr-info"><b>${esc(m.name)}</b><span>${esc(m.tagline || m.model)}</span></div>
+    </div>`;
+  };
+  // 房间小条
+  const rrow = (id) => {
+    const r = rooms[id]; if (!r) return '';
+    const tp = r.topic ? topics[r.topic] : null;
+    const mem = (r.members || []).map(memberById).filter(Boolean);
+    const sub = tp ? `${KIND_LABEL[tp.kind] || '议题'} · ${TOPIC_STATUS[tp.status] || tp.status}` : `${mem.length} 位成员`;
+    const dot = tp ? '🧭' : '💬';
+    return `<div class="hrow" data-room="${esc(id)}"><span class="hd">${dot}</span><b>${esc(r.name)}</b><span class="hs">${esc(sub)}</span></div>`;
+  };
+  // 房间卡：有立绘就用立绘做门脸（照 AIROOM 主界面那种人物卡），没有就退回小卡
   const rcard = (id) => {
-    const r = rooms[id]; const tp = r.topic ? topics[r.topic] : null;
-    const n = r.members?.length || 0;
-    const sub = tp ? `${KIND_LABEL[tp.kind] || '议题'} · ${TOPIC_STATUS[tp.status] || tp.status}` : `${n} 位成员`;
-    const emoji = tp ? '🧭' : '💬';
-    return `<div class="hcard" data-room="${esc(id)}"><div class="ico">${emoji}</div><b>${esc(r.name)}</b><span>${esc(sub)}</span></div>`;
+    const r = rooms[id]; if (!r) return '';
+    const tp = r.topic ? topics[r.topic] : null;
+    const mem = (r.members || []).map(memberById).filter(Boolean);
+    const hero = mem.find(x => x.portrait) || null;
+    const sub = tp ? `${KIND_LABEL[tp.kind] || '议题'} · ${TOPIC_STATUS[tp.status] || tp.status}` : `${mem.length} 位成员`;
+    if (!hero) {
+      const emoji = tp ? '🧭' : '💬';
+      return `<div class="hcard" data-room="${esc(id)}"><div class="ico">${emoji}</div><b>${esc(r.name)}</b><span>${esc(sub)}</span></div>`;
+    }
+    const z = Number(hero.portraitZoom) || 1, ox = Number(hero.portraitX) || 0, oy = Number(hero.portraitY) || 0;
+    const avas = mem.slice(0, 4).map(m => avaM(m)).join('');
+    return `<div class="hrcard" data-room="${esc(id)}">
+      <div class="hr-media"><img src="${esc(hero.portrait)}" style="transform:translate(-50%,-50%) translate(${ox * 0.87}px,${oy * 0.87}px) scale(${z})"></div>
+      <div class="hr-info">
+        <div class="hr-avas">${avas}</div>
+        <b>${esc(r.name)}</b>
+        <span>${esc(hero.tagline || sub)}</span>
+      </div>
+    </div>`;
   };
   hv.innerHTML = `<div class="home-wrap">
     <div class="greet">${greetWord()}</div>
@@ -692,40 +845,38 @@ function renderHome(){
       <button class="main" id="hNewGroup">＋ 新建群聊</button>
       <button id="hNewTopic">🧭 开议题</button>
     </div>
-    <div class="hsec">房间</div>
-    <div class="hcards">${roomIds.map(rcard).join('')}${topicRooms.length ? '' : ''}</div>
+    <div class="hrooms">${M.map(mcard).join('')}</div>
+
     <div class="hfoot"><span class="dot-ok"></span>${online} / ${M.length} 位成员在线 · 记录都在这台机器上</div>
   </div>`;
   $('hNewGroup').onclick = () => openNewGroup();
   $('hNewTopic').onclick = () => openTopicDialog();
-  hv.querySelectorAll('.hcard').forEach(c => { c.onclick = () => openRoom(c.dataset.room); });
+  hv.querySelectorAll('.hrcard[data-dm]').forEach(c => { c.onclick = () => openMemberPop(memberById(c.dataset.dm), c); });
+  hv.querySelectorAll('.hrow[data-room]').forEach(c => { c.onclick = () => openRoom(c.dataset.room); });
 }
 // 空房间的欢迎屏：问候 → 大标题 → 说明 → 两个动作 → 成员卡（点谁进私聊）
 function renderHomeEmpty(){
   const old = document.getElementById('homeEmpty');
   if (old) old.remove();
   if (active.startsWith('dm:')) return;
-  if (msgs.children.length > 0) return;
+  // 只有系统提示（"XX 已加入"之类）不算有内容，空态照常显示
+  const realRows = [...msgs.children].filter(el => el.classList.contains('row') && !el.classList.contains('system'));
+  if (realRows.length > 0) return;
   const list = roomMembers(active);
   const h = new Date().getHours();
   const greet = h < 6 ? '凌晨好' : h < 11 ? '早上好' : h < 14 ? '中午好' : h < 18 ? '下午好' : '晚上好';
   const d = document.createElement('div');
   d.id = 'homeEmpty';
-  d.className = 'home-empty';
-  d.innerHTML = `<div class="greet">${greet}</div>
-    <h1>今天想跟谁聊？</h1>
-    <p class="sub">选一位成员单独聊，或者「请大家一起来」——${list.length} 位模型会按这个群的方式回答。</p>
+  d.className = 'home-empty empty-room';
+  d.innerHTML = `<div class="eavas">${list.slice(0, 4).map(m => avaM(m)).join('')}</div>
+    <h1>${esc(rooms[active]?.name || '这个群')}</h1>
     <div class="acts">
-      <button class="main" id="heGo">请 大家一起来</button>
-      <button id="heGroup">＋ 新建群聊</button>
-    </div>
-    <div class="members">${list.map(m => `<div class="mcard" data-mid="${m.id}">
-        <div class="big" style="background:${colorOf(m.name)}">${esc(m.emoji || m.name[0])}</div>
-        <b>${esc(m.name)}</b><span>${esc(m.model)}</span></div>`).join('')}</div>`;
+      <button class="main" id="heGo">说点什么</button>
+      <button id="heTopic">🧭 开议题</button>
+    </div>`;
   msgs.appendChild(d);
   $('heGo').onclick = () => { const i = $('in'); if (i) i.focus(); };
-  $('heGroup').onclick = () => { if (typeof openNewGroup === 'function') openNewGroup(); };
-  d.querySelectorAll('.mcard').forEach(c => { c.onclick = () => openRoom('dm:' + c.dataset.mid); });
+  $('heTopic').onclick = () => openTopicDialog();
 }
 function setNet(online){
   netOnline = online;
@@ -785,6 +936,8 @@ const apiPost = (path, body) => fetch(path, {
 function renderStatusBar(){
   const bar = $('statusbar');
   if (!bar) return;
+  const _home = $('homeView');
+  if (homeMode || (_home && _home.style.display && _home.style.display !== 'none')) { bar.style.display = 'none'; return; }   // 主界面可见时不显示状态条
   const isDm = active.startsWith('dm:');
   bar.style.display = isDm ? 'none' : '';
   $('modeTabs').style.display = (isDm || !!topicByRoom(active)) ? 'none' : '';
@@ -1068,7 +1221,7 @@ $('plusMenu').onclick = (e) => {
   const act = e.target.dataset.act;
   if (!act) return;
   $('plusMenu').style.display = 'none';
-  act === 'group' ? openNewGroup() : act === 'topic' ? openTopicDialog() : act === 'member' ? openAddMember() : act === 'search' ? openSearch() : openRemoveMember();
+  act === 'group' ? openNewGroup() : act === 'topic' ? openTopicDialog() : openSearch();
 };
 function openNewGroup(){
   const box = $('modalBox');
@@ -1163,6 +1316,78 @@ function openAddMember(){
 }
 fetch('/api/catalog').then(r => r.json()).then(c => { CATALOG = c.catalog || {}; });
 
+// ---------- 人物浮卡：点头像/人物卡弹出（替代原来的 ⋯ 菜单） ----------
+function closeMemberPop() { const el = document.getElementById('memberPop'); if (el) el.remove(); }
+function openMemberPop(m, anchor) {
+  if (!m) return;
+  closeMemberPop();
+  const off = isOff(m);
+  const el = document.createElement('div');
+  el.id = 'memberPop';
+  el.innerHTML = `<div class="mp-card">
+      <button class="mp-close" id="mpClose">✕</button>
+      <div class="mp-hero">${m.portrait
+        ? `<img src="${esc(m.portrait)}">`
+        : `<div class="mp-hero-ava">${avaM(m)}</div>`}</div>
+      <div class="mp-body">
+        <b>${esc(m.name)}</b>
+        <span class="mp-sub">${esc(m.model)}</span>
+        ${m.tagline ? `<div class="mp-quote">「${esc(m.tagline)}」</div>` : ''}
+        ${(() => {
+          const h = new Date().getHours();
+          const slot = h >= 6 && h < 11 ? 'morning' : h >= 11 && h < 17 ? 'day' : h >= 17 && h < 22 ? 'evening' : 'night';
+          const rt = (m.routine || {})[slot] || '';
+          const act = (m.acts && m.acts.length) ? m.acts[Math.floor(Math.random() * m.acts.length)] : '';
+          return (rt || act) ? `<div class="mp-now">此刻：${esc(rt || '—')}${act ? ` · ${esc(act)}` : ''}</div>` : '';
+        })()}
+        <div class="mp-rows">
+          <div><em>线路</em><span>${esc(m.provider)}</span></div>
+          <div><em>状态</em><span>${off ? '不在线' : '在线'}</span></div>
+          <div><em>人设</em><span>${m.persona ? '已设置' : '未设置'}</span></div>
+          <div><em>议题</em><span>${Object.values(topics).filter(t => (t.memberIds || []).includes(m.id)).length} 次参与</span></div>
+        </div>
+        <div class="mp-acts">
+          <button id="mpChat">发消息</button>
+          <button class="main" id="mpCard">个人资料</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(el);
+  // 定位：贴在锚点右侧；右侧放不下就翻到左边；上下夹在窗口内
+  const r = anchor.getBoundingClientRect();
+  const W = 268, H = el.getBoundingClientRect().height || 380;
+  let left = r.right + 10;
+  if (left + W > window.innerWidth - 12) left = Math.max(12, r.left - W - 10);
+  let top = r.top;
+  if (top + H > window.innerHeight - 12) top = Math.max(12, window.innerHeight - H - 12);
+  el.style.left = Math.round(left) + 'px';
+  el.style.top = Math.round(top) + 'px';
+  $('mpClose').onclick = (e) => { e.stopPropagation(); closeMemberPop(); };
+  $('mpChat').onclick = () => { closeMemberPop(); openRoom('dm:' + m.id); };
+  $('mpCard').onclick = () => { closeMemberPop(); openMemberCard(m); };
+}
+// ---------- 成员区标题的 ＋：添加 / 删除成员 ----------
+(function () {
+  const btn = document.getElementById('memberPlus');
+  const menu = document.getElementById('memberPlusMenu');
+  if (!btn || !menu) return;
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    $('plusMenu').style.display = 'none';
+    $('chatMenu').style.display = 'none';
+    $('roomMenu').style.display = 'none';
+    $('setMenu').style.display = 'none';
+    menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+  });
+  menu.addEventListener('click', (e) => {
+    const a = e.target.dataset.mact;
+    if (!a) return;
+    e.stopPropagation();
+    menu.style.display = 'none';
+    if (a === 'add') openAddMember(); else openRemoveMember();
+  });
+})();
+
 // ---------- 成员 ⋯ 菜单 → 个人资料 ----------
 function openMemberMenu(e, m){
   const menu = $('roomMenu');
@@ -1237,7 +1462,12 @@ async function pickImageFile(){
 }
 function openMemberCard(m){
   const provs = Object.keys(CATALOG); if (!provs.includes(m.provider)) provs.unshift(m.provider);
-  const COLORS = ['#d9692f','#7b6fd6','#3c66d9','#2b8a98','#a35bdb','#c9463a','#3f8a5c','#9a7408','#6e6156','#2b231e'];
+  const COLORS = [
+    '#d9692f','#c9463a','#a8442f','#9a7408','#b8860b',          // 暖：橙 / 砖红 / 赭 / 土金
+    '#3f8a5c','#2f7d6d','#2b8a98','#2f6f9e','#3c66d9',          // 冷：墨绿 / 青绿 / 湖蓝 / 钢蓝
+    '#7b6fd6','#8e5bd0','#a35bdb','#c05ba3','#b04a7a',          // 紫：月紫 / 靛紫 / 品红
+    '#6e6156','#4a4440','#2b231e','#ffffff','#f0e6d8',          // 中性：棕灰 → 白
+  ];
   let avatar = m.avatar || '', portrait = m.portrait || '', color = m.color || '';
   let zoom = Number(m.portraitZoom) || 1, ox = Number(m.portraitX) || 0, oy = Number(m.portraitY) || 0;
   const applyTransform = () => {
@@ -1272,6 +1502,31 @@ function openMemberCard(m){
        <input id="mcAddr" value="${esc(appAddressing)}" placeholder="MD" class="mc-in">
        <label class="mc-lab">人设与说话风格 <span class="mc-link" id="mcImport">从文件导入</span></label>
        <textarea id="mcPersona" rows="5" class="mc-in" placeholder="例如：你是团队里的审稿人，性格沉稳，说话简洁。先指出最重要的问题，再给修改建议。">${esc(m.persona || '')}</textarea>
+       <div class="mc-three">
+         <div><label class="mc-lab">性别</label>
+           <select id="mcGender" class="mc-in">${['女','男','其他','不设定'].map(g => `<option value="${g}"${((m.gender || '不设定') === g) ? ' selected' : ''}>${g}</option>`).join('')}</select></div>
+         <div><label class="mc-lab">年龄</label>
+           <input id="mcAge" class="mc-in" type="number" min="1" max="999" value="${m.age ?? ''}" placeholder="16"></div>
+         <div><label class="mc-lab">穿着</label>
+           <input id="mcOutfit" class="mc-in" value="${esc(m.outfit || '')}" placeholder="跟着立绘写，如 蓝白女仆装"></div>
+       </div>
+       <label class="mc-lab">在 AI 聊天室的主要工作</label>
+       <input id="mcRole" class="mc-in" value="${esc(m.role || '')}" placeholder="如 干活和验收 / 接待和安排 / 跑腿打杂">
+       <label class="mc-lab">发言积极度</label>
+       <select id="mcTalk" class="mc-in">
+         ${[['0','沉默（不主动开口）'],['30','少言'],['50','适中'],['80','活跃']].map(([v, t]) => `<option value="${v}"${(Number(m.talk ?? 50) === Number(v)) ? ' selected' : ''}>${t}</option>`).join('')}
+       </select>
+       <label class="mc-lab">生活设定 · 作息（只用来显示"此刻在做什么"，不会当成真实经历）</label>
+       <div class="mc-grid4">
+         <input id="mcRmorning" class="mc-in" placeholder="早上 06–11" value="${esc(m.routine?.morning || '')}">
+         <input id="mcRday" class="mc-in" placeholder="白天 11–17" value="${esc(m.routine?.day || '')}">
+         <input id="mcRevening" class="mc-in" placeholder="傍晚 17–22" value="${esc(m.routine?.evening || '')}">
+         <input id="mcRnight" class="mc-in" placeholder="深夜 22–06" value="${esc(m.routine?.night || '')}">
+       </div>
+       <label class="mc-lab">小动作（一行一个，最多 8 个）</label>
+       <textarea id="mcActs" rows="2" class="mc-in" placeholder="转笔&#10;托腮看窗外">${esc((m.acts || []).join('\n'))}</textarea>
+       <label class="mc-lab">和其他成员的关系</label>
+       <div class="mc-relbox">${M.filter(o => o.id !== m.id).map(o => `<div class="mc-relrow"><span>${esc(o.name)}</span><input class="mc-in mc-rel" data-id="${o.id}" value="${esc(m.relations?.[o.id] || '')}" placeholder="例如：搭档，常互相吐槽"></div>`).join('') || '<div style="font-size:11px;color:var(--ink-4)">还没有其他成员</div>'}</div>
        <div class="mc-two">
          <div><label class="mc-lab">线路</label><select id="mcProv" class="mc-in">${provs.map(x => `<option value="${esc(x)}"${x === m.provider ? ' selected' : ''}>${esc(x)}</option>`).join('')}</select></div>
          <div><label class="mc-lab">模型</label><select id="mcModel" class="mc-in"></select></div>
@@ -1386,6 +1641,14 @@ function openMemberCard(m){
       persona: $('mcPersona').value, tagline: $('mcTagline').value,
       avatar, portrait, color, provider: $('mcProv').value, model: $('mcModel').value,
       portraitZoom: zoom, portraitX: ox, portraitY: oy,
+      talk: Number($('mcTalk')?.value ?? 50),
+      gender: $('mcGender')?.value || '',
+      age: $('mcAge')?.value ? Number($('mcAge').value) : '',
+      outfit: $('mcOutfit')?.value || '',
+      role: $('mcRole')?.value || '',
+      acts: ($('mcActs')?.value || '').split('\n').map(s => s.trim()).filter(Boolean),
+      routine: { morning: $('mcRmorning')?.value || '', day: $('mcRday')?.value || '', evening: $('mcRevening')?.value || '', night: $('mcRnight')?.value || '' },
+      relations: Object.fromEntries([...box.querySelectorAll('.mc-rel')].map(i => [i.dataset.id, i.value])),
     });
     if (!r.ok) { alert('保存失败：' + (r.error || '未知')); return; }
     const addr = $('mcAddr').value.trim();
@@ -1601,28 +1864,15 @@ function openRoomSettings(){
 
     const fa = $('flowArea');
     if (mode !== 'flow') { fa.innerHTML = ''; return; }
-    const tw = st.talkativeness || {};
     const beats = st.autoBeats ?? 3;
-    fa.innerHTML = `<div style="font-size:11px;color:var(--ink-3);margin-bottom:8px">每个成员的发言倾向：0% 从不主动开口（被点名仍会答），100% 每拍都抢。</div>` +
-      list.map(m => {
-        const v = Number(tw[m.id] ?? 50);
-        return `<div style="margin-bottom:9px">
-          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--ink-2);margin-bottom:2px">
-            <span>${esc(m.name)} <span style="color:var(--ink-4);font-size:11px">${esc(m.model)}</span></span>
-            <b class="tv" data-for="${m.id}">${v}%</b>
-          </div>
-          <input class="talkRange" data-id="${m.id}" type="range" min="0" max="100" step="10" value="${v}" style="width:100%">
-        </div>`;
-      }).join('') +
-      `<div style="font-size:12px;color:var(--ink-3);margin:14px 0 6px">自动续拍（一条消息后最多几个人开口）：</div>
+    // 发言倾向已经挪到「人物卡」里（全局），这里只留给"谁愿意开口"的一个只读提示
+    fa.innerHTML = `<div style="font-size:11px;color:var(--ink-3);line-height:1.8;margin-bottom:10px">
+        每个成员的主动程度在<b>人物卡 → 发言积极度</b>里设（全局生效）。<br>
+        ${list.map(m => `${esc(m.name)}：${({ 0: '沉默', 30: '少言', 50: '适中', 80: '活跃' })[Number(m.talk ?? 50)] || (Number(m.talk ?? 50) + '%')}`).join('　·　')}
+      </div>` +
+      `<div style="font-size:12px;color:var(--ink-3);margin:6px 0 6px">自动续拍（一条消息后最多几个人开口）：</div>
        <input id="rsBeats" type="number" min="1" max="10" step="1" value="${beats}" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;font-size:14px">
        <div style="font-size:11px;color:var(--ink-4);margin-top:6px">每拍调用一次模型，拍数越多越慢越贵。默认 3。</div>`;
-    fa.querySelectorAll('.talkRange').forEach(r => {
-      r.oninput = () => {
-        const b = fa.querySelector('.tv[data-for="' + r.dataset.id + '"]');
-        if (b) b.textContent = r.value + '%';
-      };
-    });
   };
   $('rsMode').onchange = renderPersona;
   renderPersona();
@@ -1653,11 +1903,10 @@ function openRoomSettings(){
     const rounds = Number($('rsRounds').value);
     const personas = {};
     box.querySelectorAll('.personaInput').forEach(t => { if (t.value.trim()) personas[t.dataset.id] = t.value.trim(); });
-    const talkativeness = {};
-    box.querySelectorAll('.talkRange').forEach(t => { talkativeness[t.dataset.id] = Number(t.value); });
+
     const beatsEl = $('rsBeats');
     const autoBeats = beatsEl ? Number(beatsEl.value) : undefined;
-    const body = { room: active, histChars: v, mode, personas, maxRounds: rounds, talkativeness };
+    const body = { room: active, histChars: v, mode, personas, maxRounds: rounds };
     if (autoBeats !== undefined) body.autoBeats = autoBeats;
     const r = await fetch('/api/room-settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).then(x => x.json());
     if (!r.ok) { alert('保存失败：' + (r.error || '未知')); return; }
@@ -1674,7 +1923,7 @@ function openRoomSettings(){
 }
 
 // ---------- 左上角标题重命名 ----------
-function openRename(){
+function openAppRename(){
   const box = $('modalBox');
   box.innerHTML = `<h3>重命名</h3>
     <input id="appTitleInput" value="${esc($('appTitle').textContent)}" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;font-size:14px;margin:10px 0;font-family:inherit">
@@ -1846,7 +2095,7 @@ $('setMenu').onclick = (e) => {
   const act = e.target.dataset.sact;
   if (!act) return;
   $('setMenu').style.display = 'none';
-  act === 'backup' ? openBackupModal() : act === 'import' ? openImportModal() : act === 'rename' ? openRename() : openThemeModal();
+  act === 'backup' ? openBackupModal() : act === 'import' ? openImportModal() : act === 'rename' ? openAppRename() : openThemeModal();
 };
 
 // —— 生成备份 ——
@@ -2054,6 +2303,37 @@ function pickMention(i){
   inp.focus();
   closeMention();
 }
+// 输入框：跟着内容长高；右上角把手可手动拉高/拉宽，尺寸记住
+(function () {
+  const bar = $('inputbar'), grip = $('ibGrip'), ta = inp;
+  const KEY = 'rt-composer-size';
+  const grow = () => { ta.style.height = 'auto'; ta.style.height = Math.min(220, Math.max(26, ta.scrollHeight)) + 'px'; };
+  try {
+    const s = JSON.parse(localStorage.getItem(KEY) || '{}');
+    if (s.w) bar.style.maxWidth = s.w + 'px';
+    if (s.h) ta.style.height = s.h + 'px';
+  } catch (e) {}
+  grow();
+  ta.addEventListener('input', grow);
+  let dragging = false, sx = 0, sy = 0, bw = 0, bh = 0;
+  grip.addEventListener('mousedown', (e) => {
+    e.preventDefault(); e.stopPropagation();
+    dragging = true; sx = e.clientX; sy = e.clientY;
+    bw = bar.getBoundingClientRect().width; bh = ta.getBoundingClientRect().height;
+  });
+  window.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    const w = Math.min(1100, Math.max(360, bw + (e.clientX - sx) * 2));   // 框居中，所以 ×2
+    const h = Math.min(240, Math.max(26, bh - (e.clientY - sy)));
+    bar.style.maxWidth = Math.round(w) + 'px';
+    ta.style.height = Math.round(h) + 'px';
+  });
+  window.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    try { localStorage.setItem(KEY, JSON.stringify({ w: parseInt(bar.style.maxWidth) || 760, h: parseInt(ta.style.height) || 0 })); } catch (e) {}
+  });
+})();
 inp.addEventListener('input', updateMention);
 inp.addEventListener('click', updateMention);
 inp.onkeydown = (e) => {
@@ -2068,7 +2348,7 @@ inp.onkeydown = (e) => {
     if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); pickMention(mentionIdx); return; }
     if (e.key === 'Escape') { e.preventDefault(); closeMention(); return; }
   }
-  if (e.key === 'Enter') send();
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
 };
 
 // ---------- 启动 + SSE ----------
@@ -2121,7 +2401,7 @@ es.onmessage = (e) => {
     if (loading) return;                              // 加载窗口内不建流式行，等 end 事件补画
     const row = document.createElement('div');
     row.className = 'row'; row.id = ev.id;
-    row.innerHTML = `${ava(ev.from)}<div class="msg" style="background:${colorOf(ev.from)}"><div class="who">${esc(ev.from)} · ${hhmm()}</div><div class="body">…</div></div>`;
+    row.innerHTML = `${ava(ev.from)}<div class="msg" style="background:${colorForName(ev.from)};color:${textOn(colorForName(ev.from))}"><div class="who">${esc(ev.from)} · ${hhmm()}</div><div class="body">…</div></div>`;
     msgs.appendChild(row); msgs.scrollTop = msgs.scrollHeight; streaming[ev.id] = row; return;
   }
   if (ev.type === 'delta' && streaming[ev.id]) { const b = streaming[ev.id].querySelector('.body'); if (b.textContent === '…') b.textContent = ''; b.textContent += ev.text; msgs.scrollTop = msgs.scrollHeight; return; }

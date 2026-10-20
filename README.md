@@ -4,6 +4,22 @@
 
 零依赖（只用 Node 内置模块），单文件前端，数据全部存在本地。
 
+> **前提：本机已经装了 [DeepSeek Harness](https://github.com/deepseek-ai/dsh)（DSH），并且至少配好一个模型。**
+> 这个项目直接复用 DSH 的凭据（`~/.dsh/.credentials.yaml`），不自己存 API Key。
+> 没装 DSH 的话，先去装好、在里面能跟一个模型对话，再回来。
+
+## 不想读文档？
+
+**把这个仓库地址直接丢给你的 AI**（Claude Code / Cursor / DSH 自己都行），让它按 `AGENTS.md` 帮你配好，然后告诉你"能用了"。
+
+它面对的第一步就是环境自检：
+
+```bash
+node tools/check.mjs
+```
+
+会逐项告诉你哪条线路可用、缺什么。
+
 ![界面预览](docs/screenshot.png)
 
 > 左侧是群聊与联系人，右侧是群内多模型轮流发言，底部可输入、`@` 选人、发附件。
