@@ -85,10 +85,66 @@ const roundsFor = (roomId) => {
   return Number.isFinite(v) && v >= 1 ? Math.min(Math.round(v), 50) : MAX_ROUNDS;
 };
 
-// 附件内容提取：文本直接读正文，图片调视觉模型转描述，视频/其它只留文件名
+// 附件内容提取：文本读正文，图片转描述，视频抽几帧转描述，其它只留文件名
 const TEXT_EXT = new Set(['txt', 'md', 'markdown', 'json', 'csv', 'log', 'js', 'mjs', 'ts', 'py', 'html', 'htm', 'css', 'yml', 'yaml', 'xml', 'sql', 'ini', 'sh', 'ps1', 'bat']);
 const EXTRACT_CHARS = 6000;
-async function enrichAttach(attach, buf, safeName) {
+const FFMPEG = process.env.FFMPEG_PATH || 'ffmpeg';
+const FFPROBE = process.env.FFPROBE_PATH || 'ffprobe';
+
+// 视觉模型：一次调用换一段文字描述。注意 max_tokens 必须给足，否则 HTTP 200 但 content 为空
+async function visionDescribe(buf, mime, prompt) {
+  const r = await fetch('https://api.deepseek.com/chat/completions', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${refs.DEEPSEEK_API_KEY}` },
+    body: JSON.stringify({
+      model: 'deepseek-v4-flash-vision-exp', max_tokens: 2000,   // 这个模型的推理会吃掉大部分额度，800 会让 content 变空（2026-10-21 实测）
+      messages: [{ role: 'user', content: [
+        { type: 'text', text: prompt },
+        { type: 'image_url', image_url: { url: `data:${mime};base64,${buf.toString('base64')}` } },
+      ] }],
+    }),
+    signal: AbortSignal.timeout(120_000),
+  });
+  if (!r.ok) throw new Error(`vision ${r.status}`);
+  const j = await r.json();
+  return String(j.choices?.[0]?.message?.content || '').trim();
+}
+
+// 视频：每秒抽 1 帧，每帧让视觉模型看一眼，再拼成一段描述
+const VIDEO_MAX_FRAMES = Number(process.env.RT_VIDEO_FRAMES) || 30;   // 帧数上限（可用环境变量改）
+const VIDEO_PARALLEL = 3;        // 并发 3 路，太快容易撞限流
+async function describeVideoFile(filePath) {
+  const probe = spawnSync(FFPROBE, ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', filePath], { encoding: 'utf8', timeout: 20_000 });
+  const dur = Number(String(probe.stdout || '').trim()) || 0;
+  // 短于上限：1 秒 1 张（0.5s、1.5s、2.5s…）
+  // 超过上限：**均匀铺满全程**，绝不截断——宁可密度低，也不能让后半段完全没看到
+  const n = Math.max(1, Math.min(VIDEO_MAX_FRAMES, Math.ceil(dur) || 1));
+  const step = dur > n ? dur / n : 1;
+  const marks = Array.from({ length: n }, (_, i) => Math.min(Math.max(0, dur - 0.05), i * step + Math.min(0.5, step / 2)));
+  const parts = new Array(n).fill('');
+  let cursor = 0;
+  const worker = async () => {
+    while (cursor < n) {
+      const i = cursor++;
+      const fr = spawnSync(FFMPEG, ['-v', 'error', '-ss', String(marks[i].toFixed(2)), '-i', filePath,
+        '-frames:v', '1', '-vf', 'scale=720:-2', '-f', 'image2pipe', '-vcodec', 'png', '-'],
+        { maxBuffer: 24 * 1024 * 1024, timeout: 30_000 });
+      if (fr.status !== 0 || !fr.stdout || !fr.stdout.length) continue;
+      try {
+        const text = await visionDescribe(fr.stdout, 'image/png',
+          `这是同一段视频里的第 ${i + 1} 张（约第 ${Math.round(marks[i])} 秒）。用中文一句话描述你看到的画面内容；有文字就转录关键文字。只输出描述。`);
+        if (text) parts[i] = `第${Math.round(marks[i])}秒：${text}`;
+      } catch (e) { /* 单帧失败不影响其它帧 */ }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(VIDEO_PARALLEL, n) }, worker));
+  const kept = parts.filter(Boolean);
+  if (!kept.length) throw new Error('抽帧失败（没装 ffmpeg？）');
+  const durTxt = dur ? `视频约 ${Math.round(dur)} 秒，共取样 ${n} 张${dur > n ? `（每 ${step.toFixed(1)} 秒一张，覆盖全程）` : '（每秒一张）'}。\n` : '';
+  return `${durTxt}${kept.join('\n')}`.slice(0, 6000);
+}
+
+async function enrichAttach(attach, buf, safeName, filePath) {
   const ext = String(safeName.split('.').pop() || '').toLowerCase();
   const mime = attach.mime || '';
   if (TEXT_EXT.has(ext) || mime.startsWith('text/')) {
@@ -97,22 +153,12 @@ async function enrichAttach(attach, buf, safeName) {
     attach.text = txt.slice(0, EXTRACT_CHARS);
   } else if (mime.startsWith('image/')) {
     try {
-      const r = await fetch('https://api.deepseek.com/chat/completions', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', authorization: `Bearer ${refs.DEEPSEEK_API_KEY}` },
-        body: JSON.stringify({
-          model: 'deepseek-v4-flash-vision-exp', max_tokens: 2000,   // 这个模型的推理会吃掉大部分额度，800 会让 content 变空（2026-10-21 实测）
-          messages: [{ role: 'user', content: [
-            { type: 'text', text: '用中文简洁描述这张图片的内容（不超过 200 字）；如果图中有文字，把关键文字转录出来。只输出描述。' },
-            { type: 'image_url', image_url: { url: `data:${mime};base64,${buf.toString('base64')}` } },
-          ] }],
-        }),
-        signal: AbortSignal.timeout(60_000),
-      });
-      if (r.ok) {
-        const j = await r.json();
-        attach.desc = String(j.choices?.[0]?.message?.content || '').trim().slice(0, 1200);
-      } else { attach.descErr = `vision ${r.status}`; }
+      attach.desc = (await visionDescribe(buf, mime,
+        '用中文简洁描述这张图片的内容（不超过 200 字）；如果图中有文字，把关键文字转录出来。只输出描述。')).slice(0, 1200);
+    } catch (e) { attach.descErr = e.message; }
+  } else if (mime.startsWith('video/') && filePath) {
+    try {
+      attach.desc = await describeVideoFile(filePath);
     } catch (e) { attach.descErr = e.message; }
   }
   return attach;
@@ -956,7 +1002,7 @@ const server = http.createServer((req, res) => {
         const fn = Date.now().toString(36) + '-' + safe;
         writeFileSync(join(UPLOAD_DIR, fn), buf);
         const attach = { url: '/uploads/' + encodeURIComponent(fn), name: safe, mime: mime || '', size: buf.length };
-        await enrichAttach(attach, buf, safe);        // 文本读正文 / 图片转描述，供模型阅读
+        await enrichAttach(attach, buf, safe, join(UPLOAD_DIR, fn));   // 文本读正文 / 图片转描述 / 视频抽帧，供模型阅读
         json(res, { ok: true, ...attach });
       } catch (e) { json(res, { ok: false, error: e.message }); }
     });
