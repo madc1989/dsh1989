@@ -31,6 +31,8 @@ function stamp(level, msg) {
 
 let child = null
 let stopping = false
+let crashes = 0
+const MAX_CRASHES = 5   // 连续崩 5 次就停：多半是代码语法错，无限重启只会刷爆日志
 
 function start() {
   stamp('info', `starting ${SERVER} --port ${PORT}`)
@@ -40,10 +42,19 @@ function start() {
     stdio: ['ignore', out, out],
     windowsHide: true,
   })
+  const startedAt = Date.now()
   child.on('exit', (code, signal) => {
     if (stopping) return
-    stamp('warn', `server exited code=${code} signal=${signal}，3 秒后重启`)
-    setTimeout(start, 3000)
+    // 跑够 60 秒算"正常退出后再崩"，重置计数；秒退 = 代码有问题，连续几次就停下
+    const lived = Date.now() - startedAt
+    if (lived > 60_000) crashes = 0
+    crashes++
+    stamp('warn', `server exited code=${code} signal=${signal}，存活 ${Math.round(lived / 1000)}s，连续失败 ${crashes}/${MAX_CRASHES}`)
+    if (crashes >= MAX_CRASHES) {
+      stamp('error', `连续 ${crashes} 次启动失败，守护停止。请手工看上面的报错；修好后重新运行 supervise.mjs`)
+      process.exit(1)
+    }
+    setTimeout(start, 3000 * Math.min(crashes, 5))   // 退避：3s → 6s → 9s…
   })
   child.on('error', (e) => stamp('error', `spawn failed: ${e.message}`))
 }
