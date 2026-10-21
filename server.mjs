@@ -1132,13 +1132,27 @@ const server = http.createServer((req, res) => {
     let body = ''; req.on('data', c => body += c);
     req.on('end', () => {
       try {
-        const { title, kind, material, memberIds, leadMemberId, chooser } = JSON.parse(body);
+        const body2 = JSON.parse(body);
+        const { title, kind, material, memberIds, leadMemberId, chooser } = body2;
         const k = kind === 'proposals' ? 'candidates' : (['review', 'candidates'].includes(kind) ? kind : 'review');   // 方案比较已并入比稿
-        const mat = String(material || '').trim().slice(0, 100000);
+        // 附件：只认本项目上传目录里的东西；内容并进材料正文，历史/提示词/导出都能看到
+        const atts = (Array.isArray(body2.attachments) ? body2.attachments : [])
+          .filter(a => a && typeof a.url === 'string' && a.url.startsWith('/uploads/'))
+          .slice(0, 8)
+          .map(a => ({
+            url: a.url,
+            name: String(a.name || 'file').slice(0, 60),
+            mime: String(a.mime || ''),
+            size: Number(a.size) || 0,
+            ...(a.text ? { text: String(a.text) } : {}),
+            ...(a.desc ? { desc: String(a.desc) } : {}),
+          }));
+        const attachBlob = atts.map((a, i) => `【附件${i + 1}：${a.name}】\n${a.text || a.desc || '（没能读取内容）'}`).join('\n\n');
+        const mat = (String(material || '').trim() + (attachBlob ? '\n\n' + attachBlob : '')).slice(0, 100000);
         const ids = Array.isArray(memberIds) ? memberIds.filter(id => memberById(id)) : [];
         if (!ids.length) return json(res, { ok: false, error: '请至少选择一位成员' });
         if (new Set(ids).size !== ids.length) return json(res, { ok: false, error: '成员重复' });
-        if (!mat) return json(res, { ok: false, error: '请填写材料' });
+        if (!mat.trim()) return json(res, { ok: false, error: '请填写材料（或拖入文件）' });
         const lead = memberById(leadMemberId) ? leadMemberId : ids[0];
         const id = 't' + Date.now().toString(36);
         const roomId = 't:' + id;
@@ -1146,14 +1160,15 @@ const server = http.createServer((req, res) => {
         rooms[roomId] = { name: tt, members: ids, topic: id };
         saveRooms();
         const topic = {
-          id, roomId, title: tt, kind: k, status: 'preparing', material: { text: mat },
+          id, roomId, title: tt, kind: k, status: 'preparing', material: { text: mat, attachments: atts },
           memberIds: ids, leadMemberId: lead, chooser: chooser === 'synthesizer' ? 'synthesizer' : 'user',
           slots: ids.map(mid => ({ memberId: mid, status: 'queued', text: '' })),
           revealedAt: null, selectedSlotId: null, conclusion: null,
           createdAt: Date.now(), updatedAt: Date.now(),
         };
         topics[id] = topic; saveTopics();
-        addRec({ id: 'u' + Date.now(), ts: Date.now(), room: roomId, kind: 'user', from: '你', text: mat, meta: { topicMaterial: true } });
+        addRec({ id: 'u' + Date.now(), ts: Date.now(), room: roomId, kind: 'user', from: '你', text: mat, attach: atts[0] || null, meta: { topicMaterial: true } });
+        for (let i = 1; i < atts.length; i++) addRec({ id: 'u' + Date.now() + 'a' + i, ts: Date.now(), room: roomId, kind: 'user', from: '你', text: '', attach: atts[i], meta: { topicMaterial: true } });
         addRec({ id: 's' + Date.now() + 't', ts: Date.now(), room: roomId, kind: 'system', from: 'system', text: `（${KIND_NAME[k]}议题「${tt}」：${ids.length} 位成员各自独立准备，公开前互不可见）`, meta: {} });
         broadcast({ type: 'rooms', rooms });
         broadcast({ type: 'topic', topic: publicTopic(topic) });

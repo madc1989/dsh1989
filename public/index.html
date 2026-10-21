@@ -521,6 +521,14 @@
   .ava.gava.two i:nth-child(2) { left:0; top:50%; }
 .seat.done { border-color:#cfe6d6; background:#f4faf6; animation:none; }
   .seat.done .st b { color:#2f6f4f; }
+/* 议题材料拖放区 */
+  .tp-drop { margin-top:8px; border:1px dashed var(--line-strong); border-radius:var(--r-md); padding:12px; text-align:center; cursor:pointer; background:var(--surface-2); }
+  .tp-drop:hover, .tp-drop.over { border-color:var(--brand); background:var(--paper); }
+  .tp-drop-hint { font-size:12px; color:var(--ink-3); }
+  .tp-files { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; justify-content:center; }
+  .tp-chip { display:inline-flex; align-items:center; gap:6px; font-size:11px; padding:3px 8px; border-radius:999px; background:var(--surface); border:1px solid var(--line); color:var(--ink-2); }
+  .tp-chip b { cursor:pointer; color:var(--ink-4); font-weight:400; }
+  .tp-chip b:hover { color:#a83a2c; }
 </style>
 </head>
 <body>
@@ -1356,7 +1364,11 @@ function openTopicDialog(){
       
     </select>
     ${lab('材料')}
-    <textarea id="tpMaterial" rows="5" placeholder="把要评审的文案、要写的题目、要比的方案要求贴进来…" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical"></textarea>
+    <textarea id="tpMaterial" rows="5" placeholder="把要评审的文案、要写的题目贴进来…也可以直接拖文件或图片到下面" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical"></textarea>
+    <div id="tpDrop" class="tp-drop">
+      <span class="tp-drop-hint">拖文件 / 图片到这里，或点击选择</span>
+      <div id="tpFiles" class="tp-files"></div>
+    </div>
     ${lab('参加成员（勾选）')}
     <div style="max-height:140px;overflow:auto">${M.map(m => `<label style="display:flex;align-items:center;gap:8px;padding:4px"><input type="checkbox" class="tpMem" value="${m.id}" checked> ${esc(m.name)} <span style="color:var(--ink-4);font-size:11px">${esc(m.model)}</span></label>`).join('')}</div>
 
@@ -1366,6 +1378,38 @@ function openTopicDialog(){
   $('modal').style.display = 'flex';
 
   $('tpCancel').onclick = () => { $('modal').style.display = 'none'; };
+  // 材料附件：拖拽或点选，上传后成为 chips
+  const tpAtts = [];
+  const drop = $('tpDrop'), fileBox = $('tpFiles');
+  const paintFiles = () => {
+    fileBox.innerHTML = tpAtts.map((a, i) => `<span class="tp-chip">${a.mime.startsWith('image/') ? '🖼' : '📎'} ${esc(a.name)}<b data-i="${i}">✕</b></span>`).join('');
+    fileBox.querySelectorAll('b').forEach(b => {
+      b.onclick = (e) => { e.stopPropagation(); tpAtts.splice(Number(b.dataset.i), 1); paintFiles(); };
+    });
+    drop.classList.toggle('has', tpAtts.length > 0);
+  };
+  const addFiles = async (files) => {
+    for (const f of [...files].slice(0, 8 - tpAtts.length)) {
+      drop.querySelector('.tp-drop-hint').textContent = '上传中…';
+      try {
+        const data = await fileToB64(f);
+        const r = await apiPost('/api/upload', { name: f.name, mime: f.type, data });
+        if (r.ok) tpAtts.push({ url: r.url, name: r.name, mime: r.mime, size: r.size, ...(r.text ? { text: r.text } : {}), ...(r.desc ? { desc: r.desc } : {}) });
+        else alert('上传失败：' + (r.error || ''));
+      } catch (e) { alert('上传失败：' + e.message); }
+    }
+    drop.querySelector('.tp-drop-hint').textContent = '拖文件 / 图片到这里，或点击选择';
+    paintFiles();
+  };
+  drop.onclick = () => {
+    const inp = document.createElement('input');
+    inp.type = 'file'; inp.multiple = true; inp.accept = 'image/*,.txt,.md,.json,.csv,.log,.js,.ts,.css,.html,.py,.mjs';
+    inp.onchange = () => addFiles(inp.files);
+    inp.click();
+  };
+  drop.ondragover = (e) => { e.preventDefault(); drop.classList.add('over'); };
+  drop.ondragleave = () => drop.classList.remove('over');
+  drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove('over'); addFiles(e.dataTransfer.files); };
   $('tpGo').onclick = async () => {
     const memberIds = [...box.querySelectorAll('.tpMem:checked')].map(i => i.value);
     if (!memberIds.length) { alert('至少选一位成员'); return; }
@@ -1374,7 +1418,7 @@ function openTopicDialog(){
     const btn = $('tpGo'); btn.disabled = true; btn.textContent = '创建中…';
     const r = await apiPost('/api/topic/open', {
       title: $('tpTitle').value.trim(), kind: $('tpKind').value, material,
-      memberIds, leadMemberId: $('tpLead').value, chooser: 'user',
+      memberIds, leadMemberId: $('tpLead').value, chooser: 'user', attachments: tpAtts,
     });
     if (!r.ok) { alert('创建失败：' + (r.error || '未知')); btn.disabled = false; btn.textContent = '开始准备'; return; }
     topics[r.topic.id] = r.topic;
