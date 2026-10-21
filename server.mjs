@@ -101,7 +101,7 @@ async function enrichAttach(attach, buf, safeName) {
         method: 'POST',
         headers: { 'content-type': 'application/json', authorization: `Bearer ${refs.DEEPSEEK_API_KEY}` },
         body: JSON.stringify({
-          model: 'deepseek-v4-flash-vision-exp', max_tokens: 800,
+          model: 'deepseek-v4-flash-vision-exp', max_tokens: 2000,   // 这个模型的推理会吃掉大部分额度，800 会让 content 变空（2026-10-21 实测）
           messages: [{ role: 'user', content: [
             { type: 'text', text: '用中文简洁描述这张图片的内容（不超过 200 字）；如果图中有文字，把关键文字转录出来。只输出描述。' },
             { type: 'image_url', image_url: { url: `data:${mime};base64,${buf.toString('base64')}` } },

@@ -2424,6 +2424,31 @@ $('attachMenu').onclick = (e) => {
   };
   picker.click();
 };
+// 粘贴图片：从剪贴板直接贴（截图后 Ctrl+V 就能发）
+inp.addEventListener('paste', async (e) => {
+  const items = [...((e.clipboardData && e.clipboardData.items) || [])];
+  const pic = items.find(it => it.kind === 'file' && /^image\//.test(it.type));
+  if (!pic) return;                       // 纯文本粘贴走默认行为
+  e.preventDefault();
+  const f = pic.getAsFile();
+  if (!f) return;
+  const ext = (f.type.split('/')[1] || 'png').replace('jpeg', 'jpg');
+  const named = new File([f], `粘贴图片-${Date.now()}.${ext}`, { type: f.type || 'image/png' });
+  try { await prepareAttach(named, 'image'); }
+  catch (err) { alert('粘贴失败：' + (err && err.message ? err.message : err)); }
+  if (typeof growComposer === 'function') growComposer();
+});
+// 拖文件到输入框也能发
+$('inputbar').addEventListener('dragover', (e) => {
+  if (e.dataTransfer && [...e.dataTransfer.types].includes('Files')) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }
+});
+$('inputbar').addEventListener('drop', async (e) => {
+  const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  if (!f) return;
+  e.preventDefault();
+  const kind = /^image\//.test(f.type) ? 'image' : /^video\//.test(f.type) ? 'video' : 'file';
+  try { await prepareAttach(f, kind); } catch (err) { alert('拖入失败：' + (err && err.message ? err.message : err)); }
+});
 let pendingAttach = null;   // 已上传、待随下一条消息一起发送的附件
 function renderPending(){
   const w = $('pendingWrap');
