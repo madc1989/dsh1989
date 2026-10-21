@@ -2467,7 +2467,8 @@ async function prepareAttach(file, kind){
     const base64 = String(dataUrl).split(',')[1] || '';
     const up = await fetch('/api/upload', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: file.name, mime: file.type, data: base64 }) }).then(r => r.json());
     if (!up.ok) { alert('上传失败：' + (up.error || '未知')); return; }
-    pendingAttach = { url: up.url, name: up.name, mime: up.mime, kind };
+    // 关键：整份 up 都要留住（size、text、desc 都是服务端识别出来的，丢了模型就看不见内容）
+    pendingAttach = { ...up, kind };
     renderPending();
     $('in').focus();                       // 上传完回到输入框，接着写你要说的话
   } catch (err) { alert('上传失败：' + err.message); }
