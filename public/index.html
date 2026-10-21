@@ -519,6 +519,8 @@
   .ava.gava.two i { width:100%; height:50%; }
   .ava.gava.two i:nth-child(1) { left:0; top:0; }
   .ava.gava.two i:nth-child(2) { left:0; top:50%; }
+.seat.done { border-color:#cfe6d6; background:#f4faf6; animation:none; }
+  .seat.done .st b { color:#2f6f4f; }
 </style>
 </head>
 <body>
@@ -985,7 +987,7 @@ function renderStatusBar(){
   if (homeMode || (_home && _home.style.display && _home.style.display !== 'none')) { bar.style.display = 'none'; return; }   // 主界面可见时不显示状态条
   const isDm = active.startsWith('dm:');
   bar.style.display = isDm ? 'none' : '';
-  $('modeTabs').style.display = (isDm || !!topicByRoom(active)) ? 'none' : '';
+  $('modeTabs').style.display = isDm ? 'none' : '';   // 议题房间也能切模式：揭晓后想让大家独立评价，就切独立
   if (isDm) return;
   const st = roomSettings[active] || {};
   const mode = st.mode === 'persona' ? 'free' : (st.mode || 'free');   // 旧数据兼容：设定模式已取消
@@ -1021,14 +1023,15 @@ function renderStatusBar(){
     const speaking = !!s.speaking && !out;
     const off = isOff(m) || out;
     let label = out ? '已离席' : speaking ? '正在说话…' : isOff(m) ? '不在线' : '在场';
-    let hot = speaking;
+    let hot = speaking, done = false;
     if (tp) {                                              // 议题房间：席位显示"交稿状态"
       const slot = tp.slots.find(x => x.memberId === m.id);
       label = slot ? (SLOT_LABEL[slot.status] || slot.status) : '不在本议题';
-      hot = !!slot && (slot.status === 'running' || slot.status === 'completed');
+      hot = !!slot && slot.status === 'running';            // 只有"正在准备"才呼吸
+      done = !!slot && slot.status === 'completed';         // 已交稿：静态描边，不动
     }
-    return `<div class="seat${hot ? ' speaking' : ''}${off ? ' off' : ''}" data-id="${m.id}">${avaM(m)}` +
-      `<div class="st"><b>${esc(m.name)}${hot && !tp ? ' · 正在发言' : ''}</b><span>${label}</span></div></div>`;
+    return `<div class="seat${hot ? ' speaking' : ''}${done ? ' done' : ''}${off ? ' off' : ''}" data-id="${m.id}">${avaM(m)}` +
+      `<div class="st"><b>${esc(m.name)}${hot && !tp ? ' · 正在发言' : ''}${done ? ' ✓' : ''}</b><span>${label}</span></div></div>`;
   }).join('');
   $('sbPills').innerHTML = tp ? '' : list.map(m => {
     const on = pres[m.id] !== false;
@@ -1348,9 +1351,9 @@ function openTopicDialog(){
     <input id="tpTitle" placeholder="例如：这段文案该怎么改" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;font-size:14px;font-family:inherit">
     ${lab('类型')}
     <select id="tpKind" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;font-size:13px">
-      <option value="review">评审 —— 大家检查同一份材料，挑问题</option>
-      <option value="candidates">比稿 —— 每人独立写一版同样的东西</option>
-      <option value="proposals">方案比较 —— 每人提一个方案</option>
+      <option value="review">评审 —— 已经有稿子，让大家挑毛病</option>
+      <option value="candidates">比稿 —— 还没有稿子，各写一版来比</option>
+      
     </select>
     ${lab('材料')}
     <textarea id="tpMaterial" rows="5" placeholder="把要评审的文案、要写的题目、要比的方案要求贴进来…" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical"></textarea>

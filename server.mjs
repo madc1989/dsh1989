@@ -664,7 +664,7 @@ const TOPICS_FILE = join(DATA, 'topics.json');
 let topics = existsSync(TOPICS_FILE) ? JSON.parse(readFileSync(TOPICS_FILE, 'utf8')) : {};
 const saveTopics = () => writeFileSync(TOPICS_FILE, JSON.stringify(topics, null, 2), 'utf8');
 
-const KIND_NAME = { review: '评审', candidates: '比稿', proposals: '方案比较' };
+const KIND_NAME = { review: '评审', candidates: '比稿', proposals: '比稿' };   // 旧数据里的 proposals 统一按比稿显示
 
 // 对外视图：**未揭晓前绝不返回候选正文**（互不可见靠这里兜底，不靠前端藏）
 function publicTopic(t) {
@@ -1124,7 +1124,7 @@ const server = http.createServer((req, res) => {
     req.on('end', () => {
       try {
         const { title, kind, material, memberIds, leadMemberId, chooser } = JSON.parse(body);
-        const k = ['review', 'candidates', 'proposals'].includes(kind) ? kind : 'review';
+        const k = kind === 'proposals' ? 'candidates' : (['review', 'candidates'].includes(kind) ? kind : 'review');   // 方案比较已并入比稿
         const mat = String(material || '').trim().slice(0, 100000);
         const ids = Array.isArray(memberIds) ? memberIds.filter(id => memberById(id)) : [];
         if (!ids.length) return json(res, { ok: false, error: '请至少选择一位成员' });
