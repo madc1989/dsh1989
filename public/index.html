@@ -545,6 +545,7 @@
       <div id="setMenu" data-popover>
         <div data-sact="backup">📦 生成备份</div>
         <div data-sact="import">📥 导入备份</div>
+        <div data-sact="access">📱 手机访问</div>
         <div data-sact="rename">✏️ 重命名</div>
         <div data-sact="theme">🎨 背景设置</div>
       </div>
@@ -2012,6 +2013,45 @@ function openRoomSettings(){
   };
 }
 
+// 设置 → 📱 手机访问：显示地址与口令（只在本机有效）
+async function openAccessModal(){
+  const box = $('modalBox');
+  box.style.width = '520px';
+  const info = await fetch('/api/access-info').then(r => r.json()).catch(() => ({ ok: false, error: '取不到' }));
+  if (!info.ok) { box.style.width = ''; alert('只在电脑本机才能看这个：' + (info.error || '')); return; }
+  const urls = (info.ips || []).map(ip => `http://${ip}:${info.port}`).join('\n') || '（没检测到内网地址）';
+  box.innerHTML = `<h3>📱 手机访问</h3>
+    <div style="font-size:12px;color:var(--ink-3);line-height:1.8;margin:8px 0 12px">
+      手机连同一个 Wi-Fi，打开下面地址，输一次口令就能进。电脑本机访问不用口令。
+    </div>
+    <label class="mc-lab">地址（点复制）</label>
+    <textarea id="acUrls" rows="${Math.max(1, (info.ips || []).length)}" class="mc-in" readonly style="font-family:ui-monospace,Consolas,monospace;font-size:13px">${esc(urls)}</textarea>
+    <label class="mc-lab">口令（6 位数字，可改）</label>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input id="acPw" class="mc-in" value="${esc(info.password)}" style="font-family:ui-monospace,Consolas,monospace;font-size:18px;letter-spacing:4px;text-align:center;width:160px">
+      <button id="acCopy" style="padding:8px 14px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--surface);cursor:pointer;font-size:12px">复制口令</button>
+      <button id="acSave" class="primary" style="padding:8px 14px;border-radius:var(--r-sm);border:1px solid var(--brand);background:var(--brand);color:var(--brand-ink);cursor:pointer;font-size:12px">保存</button>
+    </div>
+    ${info.lanOpen ? '' : `<div style="font-size:11px;color:#a83a2c;margin-top:10px">⚠️ 服务当前只监听本机（127.0.0.1），手机连不上。用 <code>--host 0.0.0.0</code> 启动才行。</div>`}
+    <div style="font-size:11px;color:var(--ink-4);margin-top:12px;line-height:1.7">
+      注意：局域网里是 HTTP 明文，同一 Wi-Fi 下的技术用户抓包能看到口令。家里/自己办公室够用，公共 Wi-Fi 别开。
+    </div>
+    <div class="foot"><button id="acClose">关闭</button></div>`;
+  $('modal').style.display = 'flex';
+  const close = () => { box.style.width = ''; $('modal').style.display = 'none'; };
+  $('acClose').onclick = close;
+  $('acCopy').onclick = async () => {
+    try { await navigator.clipboard.writeText($('acPw').value); $('acCopy').textContent = '已复制 ✓'; }
+    catch { $('acPw').select(); document.execCommand('copy'); $('acCopy').textContent = '已复制 ✓'; }
+    setTimeout(() => { $('acCopy').textContent = '复制口令'; }, 1500);
+  };
+  $('acSave').onclick = async () => {
+    const r = await apiPost('/api/access-password', { password: $('acPw').value.trim() });
+    if (!r.ok) { alert('保存失败：' + (r.error || '未知')); return; }
+    $('acPw').value = r.password;
+    alert('已保存。手机上要重新输一次新口令。');
+  };
+}
 // ---------- 左上角标题重命名 ----------
 function openAppRename(){
   const box = $('modalBox');
@@ -2185,7 +2225,7 @@ $('setMenu').onclick = (e) => {
   const act = e.target.dataset.sact;
   if (!act) return;
   $('setMenu').style.display = 'none';
-  act === 'backup' ? openBackupModal() : act === 'import' ? openImportModal() : act === 'rename' ? openAppRename() : openThemeModal();
+  act === 'backup' ? openBackupModal() : act === 'import' ? openImportModal() : act === 'access' ? openAccessModal() : act === 'rename' ? openAppRename() : openThemeModal();
 };
 
 // —— 生成备份 ——

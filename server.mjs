@@ -6,7 +6,8 @@ import http from 'node:http';
 import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { homedir } from 'node:os';
+import { homedir, networkInterfaces } from 'node:os';
+import { createHash, randomInt } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 
 // ---------- 常量 ----------
@@ -570,6 +571,8 @@ function handleUser(roomId, text, attach) {
       if (room.members.length > 1) addRec({ id: 's' + Date.now() + 'flow', ts: Date.now(), room: roomId, kind: 'system', from: 'system', text: `（自由模式：本轮最多 ${beats} 拍，谁开口看发言倾向，被点名的优先）`, meta: { noHist: true } });
       // 这句不能写成「接着上一句说」：那样每个人都会追着前一句打补丁，变成接力赛（用户实测反馈）
       const FLOW_TURN = '（轮到你在这个群里说句话。像发微信那样：一两句，别写小作文。可以接任何人的话，也可以换话题、翻旧账、只说半句；实在没什么想补的，就只回「沉默」两个字。）';
+      // 被点名 = 有人在直接问你：这时候不许沉默。小模型会逐字照着"可以回沉默"执行，必须把这条路堵掉
+      const FLOW_TURN_CALLED = '（上一条消息是在直接问你。必须开口回答，不许回「沉默」；像发微信那样，一两句就够。）';
       let carry = text || '';                            // 上一句话，用来认「有人在点谁的名字」
       let lastId = null;
       const quiet = new Set();                           // 本轮已经表示"没话说"的人，别在同一轮反复点他
@@ -582,7 +585,7 @@ function handleUser(roomId, text, attach) {
         if (!mb) break;
         const called = !!carry && carry.toLowerCase().includes(String(mb.name).toLowerCase());
         const extra = recall + (called ? '\n（上一条消息里喊了你的名字。）' : '');
-        const rec = await speak(mb, room, extra, { mode: 'flow', beat: b + 1, total: beats, turnNote: FLOW_TURN });
+        const rec = await speak(mb, room, extra, { mode: 'flow', beat: b + 1, total: beats, turnNote: called ? FLOW_TURN_CALLED : FLOW_TURN });
         if (rec?.meta?.silent) { quiet.add(mb.id); }       // 没接话：本轮不再点他，话头留在上一句
         else if (rec?.text) carry = rec.text;
         lastId = mb.id;
@@ -765,8 +768,122 @@ ${talk ? `\n揭晓之后的讨论记录：\n${talk}` : ''}
 // ---------- HTTP ----------
 const HTML = readFileSync(join(ROOT, 'public', 'index.html'));
 const json = (res, obj, code = 200) => { res.writeHead(code, { 'content-type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(obj)); };
+// ---------- 访问口令：本机免登录，局域网设备要输一次 ----------
+const AUTH_FILE = join(DATA, 'auth.json');
+let auth = { password: '' };
+try { auth = JSON.parse(readFileSync(AUTH_FILE, 'utf8')); } catch {}
+if (!auth.password || String(auth.password).length < 4) {
+  auth.password = String(randomInt(100000, 1000000));          // 6 位数字：手机上最好敲
+  writeFileSync(AUTH_FILE, JSON.stringify(auth, null, 2), 'utf8');
+}
+const saveAuth = () => writeFileSync(AUTH_FILE, JSON.stringify(auth, null, 2), 'utf8');
+const authToken = () => createHash('sha256').update('rt:' + auth.password).digest('hex').slice(0, 32);
+
+const LAN_IPS = () => {
+  const out = [];
+  const ifs = networkInterfaces();
+  for (const k of Object.keys(ifs)) for (const a of ifs[k] || []) {
+    if (a.family === 'IPv4' && !a.internal) out.push(a.address);
+  }
+  return out;
+};
+
+// 登录页（不依赖前端那 15 万字节，独立一小页）
+const LOGIN_HTML = `<!doctype html><html lang="zh"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>圆桌 · 需要口令</title>
+<style>
+  :root{--paper:#f6f0e7;--surface:#fffdfa;--line:#e2d8ca;--ink:#2b231e;--ink3:#8a7f74;--brand:#2b231e}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--paper);color:var(--ink);
+       font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;padding:24px}
+  .card{width:100%;max-width:340px;background:var(--surface);border:1px solid var(--line);border-radius:20px;
+        padding:26px 22px;box-shadow:0 8px 28px rgba(43,35,30,.08)}
+  h1{font-size:19px;margin-bottom:6px}
+  p{font-size:12px;color:var(--ink3);line-height:1.7;margin-bottom:18px}
+  input{width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;font-size:20px;text-align:center;
+        letter-spacing:6px;font-family:inherit;background:var(--paper);color:var(--ink)}
+  button{width:100%;margin-top:12px;padding:12px;border:none;border-radius:12px;background:var(--brand);color:#fffdfa;
+         font-size:15px;font-family:inherit;cursor:pointer}
+  button:disabled{opacity:.6}
+  .err{color:#a83a2c;font-size:12px;margin-top:10px;min-height:16px;text-align:center}
+</style></head><body>
+  <div class="card">
+    <h1>圆桌</h1>
+    <p>这台设备要口令才能进。<br>口令在电脑上：左下角 ⚙ 设置 → 📱 手机访问。</p>
+    <input id="pw" inputmode="numeric" autocomplete="one-time-code" placeholder="······" maxlength="12">
+    <button id="go">进 入</button>
+    <div class="err" id="err"></div>
+  </div>
+<script>
+  const pw = document.getElementById('pw'), go = document.getElementById('go'), err = document.getElementById('err');
+  pw.focus();
+  async function submit(){
+    const v = pw.value.trim();
+    if (!v) return;
+    go.disabled = true; err.textContent = '';
+    try {
+      const r = await fetch('/api/login', { method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({ password:v }) });
+      const j = await r.json();
+      if (j.ok) { location.reload(); return; }
+      err.textContent = j.error || '口令不对';
+    } catch (e) { err.textContent = '连不上服务'; }
+    go.disabled = false; pw.select();
+  }
+  go.onclick = submit;
+  pw.onkeydown = (e) => { if (e.key === 'Enter') submit(); };
+</script></body></html>`;
 const server = http.createServer((req, res) => {
   const u = new URL(req.url, 'http://x');
+  // ---- 口令闸门：本机（127.0.0.1）免登录，其它设备要先输口令 ----
+  {
+    const rip = String(req.socket.remoteAddress || '').replace('::ffff:', '');
+    const isLocal = rip === '127.0.0.1' || rip === '::1' || rip === '';
+    if (!isLocal) {
+      const cookie = req.headers.cookie || '';
+      const m = /(?:^|;\s*)rt_auth=([a-f0-9]+)/.exec(cookie);
+      const authed = !!m && m[1] === authToken();
+      if (!authed) {
+        if (u.pathname === '/api/login' && req.method === 'POST') {
+          let b = ''; req.on('data', c => b += c);
+          req.on('end', () => {
+            let ok = false;
+            try { ok = String(JSON.parse(b).password || '') === String(auth.password); } catch {}
+            if (!ok) return json(res, { ok: false, error: '口令不对' }, 401);
+            res.writeHead(200, {
+              'content-type': 'application/json; charset=utf-8',
+              'set-cookie': `rt_auth=${authToken()}; Path=/; Max-Age=2592000; SameSite=Lax; HttpOnly`,
+            });
+            res.end(JSON.stringify({ ok: true }));
+          });
+          return;
+        }
+        if (u.pathname.startsWith('/api/')) return json(res, { ok: false, error: '需要口令', needLogin: true }, 401);
+        res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+        return res.end(LOGIN_HTML);
+      }
+    }
+  }
+  // ---- 手机访问：口令与地址（只允许本机调用） ----
+  if (u.pathname === '/api/access-info' && req.method === 'GET') {
+    const rip = String(req.socket.remoteAddress || '').replace('::ffff:', '');
+    if (!(rip === '127.0.0.1' || rip === '::1')) return json(res, { ok: false, error: '只在本机可看' }, 403);
+    return json(res, { ok: true, password: auth.password, ips: LAN_IPS(), port: PORT, lanOpen: HOST === '0.0.0.0' });
+  }
+  if (u.pathname === '/api/access-password' && req.method === 'POST') {
+    const rip = String(req.socket.remoteAddress || '').replace('::ffff:', '');
+    if (!(rip === '127.0.0.1' || rip === '::1')) return json(res, { ok: false, error: '只在本机可改' }, 403);
+    let b2 = ''; req.on('data', c => b2 += c);
+    req.on('end', () => {
+      try {
+        const pw = String(JSON.parse(b2).password || '').trim();
+        if (pw.length < 4 || pw.length > 20) return json(res, { ok: false, error: '口令 4~20 位' });
+        auth.password = pw; saveAuth();
+        json(res, { ok: true, password: auth.password });
+      } catch (e) { json(res, { ok: false, error: e.message }); }
+    });
+    return;
+  }
   if (u.pathname === '/' && req.method === 'GET') { res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store, must-revalidate' }); return res.end(HTML); }
   if (u.pathname === '/api/state' && req.method === 'GET') {
     return json(res, { members, rooms, maxRounds: MAX_ROUNDS, states: mstate, netOnline, settings: roomSettings, histDefault: HIST_CHARS, appTitle: roomSettings._app?.title || '圆桌', theme: roomSettings._app?.theme || null, addressing: roomSettings._app?.addressing || 'MD', topics: Object.values(topics).map(publicTopic) });
