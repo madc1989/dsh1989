@@ -262,6 +262,7 @@ function systemPrompt(member, room, extra = '') {
     if (member.age) parts.push(`年龄 ${member.age} 岁`);
     if (member.outfit) parts.push(`穿着 ${member.outfit}`);
     if (member.role) parts.push(`在这间 AI 聊天室主要负责 ${member.role}`);
+    if (member.looks) parts.push(`你的样子（你自己看得见）：${member.looks}`);
     if (!parts.length) return '';
     return `\n【你的档案】${parts.join('；')}。别人问起这些，照实回答，不要说"不知道""没数过"。`;
   })();
@@ -674,6 +675,7 @@ function publicTopic(t) {
     id: t.id, roomId: t.roomId, title: t.title, kind: t.kind, status: t.status,
     memberIds: t.memberIds, leadMemberId: t.leadMemberId, chooser: t.chooser,
     revealedAt: t.revealedAt || null, selectedSlotId: t.selectedSlotId || null,
+    material: { text: t.material?.text || '', hasAttachments: !!(t.material?.attachments || []).length },
     createdAt: t.createdAt, updatedAt: t.updatedAt,
     slots: (t.slots || []).map(s => ({
       memberId: s.memberId, status: s.status, at: s.at || null,
@@ -720,7 +722,8 @@ async function runTopicPreparation(topic, room) {
     if (!mb) { slot.status = 'skipped'; slot.error = '成员不存在'; return; }
     slot.status = 'running'; saveTopics(); broadcast({ type: 'topic', topic: publicTopic(topic) });
     try {
-      const text = await askOnce(mb, room, '', topicTurnNote(topic));
+      const attExtra = topic.material?.extract ? `\n材料的附件内容（用户随材料一起提供的，务必读完再作答）：\n${topic.material.extract}` : '';
+      const text = await askOnce(mb, room, attExtra, topicTurnNote(topic));
       if (text) { slot.text = text; slot.status = 'completed'; } else { slot.status = 'skipped'; slot.error = '返回空内容'; }
     } catch (e) {
       slot.status = 'skipped'; slot.error = e.message;
@@ -744,6 +747,7 @@ function buildMinutesPrompt(t, done) {
 
 材料：
 ${cut(t.material?.text || '', 1500)}
+${t.material?.extract ? `\n材料附件：\n${cut(t.material.extract, 1500)}\n` : ''}
 
 各成员独立产出的版本（公开前互不可见）：
 ${pieces}
@@ -874,7 +878,43 @@ const server = http.createServer((req, res) => {
     }
   }
   // ---- 手机访问：口令与地址（只允许本机调用） ----
-  if (u.pathname === '/api/access-info' && req.method === 'GET') {
+  // ---- 让模型"看自己一眼"：视觉模型看一次立绘，把描述存进成员卡，之后每次对话都带上 ----
+  if (u.pathname === '/api/members/looks' && req.method === 'POST') {
+    let b3 = ''; req.on('data', c => b3 += c);
+    req.on('end', async () => {
+      try {
+        const mb = memberById(JSON.parse(b3).id);
+        if (!mb) return json(res, { ok: false, error: '成员不存在' });
+        if (!mb.portrait) return json(res, { ok: false, error: '这位成员还没有立绘' });
+        const fn = decodeURIComponent(String(mb.portrait).replace('/uploads/', ''));
+        const p = join(UPLOAD_DIR, fn);
+        if (!existsSync(p)) return json(res, { ok: false, error: '立绘文件找不到了' });
+        const buf = readFileSync(p);
+        const ext = fn.split('.').pop().toLowerCase();
+        const mime = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif' }[ext] || 'image/png';
+        const r = await fetch('https://api.deepseek.com/chat/completions', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', authorization: `Bearer ${refs.DEEPSEEK_API_KEY}` },
+          body: JSON.stringify({
+            model: 'deepseek-v4-flash-vision-exp', max_tokens: 2000,   // 推理会吃掉大部分额度：400/1200 都可能返回空 content，2000 实测稳定
+            messages: [{ role: 'user', content: [
+              { type: 'text', text: '这是某个角色的立绘。用第一人称、60 字以内描述"你自己"长什么样：发色、瞳色、服装、随身物品、整体气质。像跟人自我介绍那样说，不要提"图片""画""角色"。只输出这段描述。' },
+              { type: 'image_url', image_url: { url: `data:${mime};base64,${buf.toString('base64')}` } },
+            ] }],
+          }),
+          signal: AbortSignal.timeout(90_000),
+        });
+        if (!r.ok) return json(res, { ok: false, error: `视觉模型返回 ${r.status}` });
+        const j = await r.json();
+        const looks = String(j.choices?.[0]?.message?.content || '').trim().slice(0, 200);
+        if (!looks) return json(res, { ok: false, error: '视觉模型没给出描述' });
+        mb.looks = looks;
+        saveMembers();
+        json(res, { ok: true, looks });
+      } catch (e) { json(res, { ok: false, error: e.message }); }
+    });
+    return;
+  }  if (u.pathname === '/api/access-info' && req.method === 'GET') {
     const rip = String(req.socket.remoteAddress || '').replace('::ffff:', '');
     if (!(rip === '127.0.0.1' || rip === '::1')) return json(res, { ok: false, error: '只在本机可看' }, 403);
     return json(res, { ok: true, password: auth.password, ips: LAN_IPS(), port: PORT, lanOpen: HOST === '0.0.0.0' });
@@ -1148,7 +1188,9 @@ const server = http.createServer((req, res) => {
             ...(a.desc ? { desc: String(a.desc) } : {}),
           }));
         const attachBlob = atts.map((a, i) => `【附件${i + 1}：${a.name}】\n${a.text || a.desc || '（没能读取内容）'}`).join('\n\n');
-        const mat = (String(material || '').trim() + (attachBlob ? '\n\n' + attachBlob : '')).slice(0, 100000);
+        // 材料文本只放用户自己写的（聊天里显示这个）；附件抽取内容单独存 extract，只喂给模型
+        const mat = String(material || '').trim().slice(0, 100000);
+        if (!mat.trim() && !atts.length) return json(res, { ok: false, error: '请填写材料（或拖入文件）' });
         const ids = Array.isArray(memberIds) ? memberIds.filter(id => memberById(id)) : [];
         if (!ids.length) return json(res, { ok: false, error: '请至少选择一位成员' });
         if (new Set(ids).size !== ids.length) return json(res, { ok: false, error: '成员重复' });
@@ -1466,7 +1508,7 @@ const server = http.createServer((req, res) => {
     let body = ''; req.on('data', c => body += c);
     req.on('end', () => {
       try {
-        const { id, name, emoji, persona, provider, model, avatar, portrait, tagline, color, portraitZoom, portraitX, portraitY, talk, acts, relations, routine, gender, age, outfit, role } = JSON.parse(body);
+        const { id, name, emoji, persona, provider, model, avatar, portrait, tagline, color, portraitZoom, portraitX, portraitY, talk, acts, relations, routine, gender, age, outfit, role, looks } = JSON.parse(body);
         const mb = members.find(m => m.id === id);
         if (!mb) return json(res, { ok: false, error: '成员不存在' });
         if (name !== undefined) {
@@ -1497,6 +1539,7 @@ const server = http.createServer((req, res) => {
         if (age !== undefined) { const a = Number(age); if (Number.isFinite(a) && a > 0 && a < 999) mb.age = Math.round(a); else delete mb.age; }
         if (outfit !== undefined) { const s = String(outfit || '').trim().slice(0, 40); if (s) mb.outfit = s; else delete mb.outfit; }
         if (role !== undefined) { const s = String(role || '').trim().slice(0, 30); if (s) mb.role = s; else delete mb.role; }
+        if (looks !== undefined) { const s = String(looks || '').trim().slice(0, 200); if (s) mb.looks = s; else delete mb.looks; }
         if (talk !== undefined) { const n = Number(talk); if (Number.isFinite(n)) mb.talk = Math.max(0, Math.min(100, Math.round(n))); }
         if (acts !== undefined) {
           const arr = Array.isArray(acts) ? acts.map(x => String(x).trim().slice(0, 20)).filter(Boolean).slice(0, 8) : [];

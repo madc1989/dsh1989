@@ -1648,6 +1648,8 @@ function openMemberCard(m){
          <div><label class="mc-lab">穿着</label>
            <input id="mcOutfit" class="mc-in" value="${esc(m.outfit || '')}" placeholder="跟着立绘写，如 蓝白女仆装"></div>
        </div>
+       <label class="mc-lab">我的样子 <span class="mc-link" id="mcLooksBtn">让模型看一眼自己的立绘</span></label>
+       <textarea id="mcLooks" rows="2" class="mc-in" placeholder="点上面的链接，视觉模型会读一遍立绘并写成第一人称的自述；也可以自己写">${esc(m.looks || '')}</textarea>
        <label class="mc-lab">在 AI 聊天室的主要工作</label>
        <input id="mcRole" class="mc-in" value="${esc(m.role || '')}" placeholder="如 干活和验收 / 接待和安排 / 跑腿打杂">
        <label class="mc-lab">发言积极度</label>
@@ -1772,6 +1774,16 @@ function openMemberCard(m){
   };
   $('mcProv').onchange = fillModels;
   fillModels();                                  // 打开就要填一次，否则下拉是空的（2026-10-20 踩过）
+  $('mcLooksBtn').onclick = async (e) => {
+    e.stopPropagation();
+    if (!m.portrait) { alert('先上传立绘'); return; }
+    const b = $('mcLooksBtn'); const old = b.textContent;
+    b.textContent = '正在看…'; b.style.pointerEvents = 'none';
+    const r = await apiPost('/api/members/looks', { id: m.id });
+    b.textContent = old; b.style.pointerEvents = '';
+    if (!r.ok) { alert('失败：' + (r.error || '未知')); return; }
+    $('mcLooks').value = r.looks;
+  };
   $('mcSave').onclick = async () => {
     if (!$('mcModel').value) { alert('模型下拉是空的：先确认网络能取到模型目录，或换一个线路'); return; }
     const r = await apiPost('/api/members/update', {
@@ -1783,6 +1795,7 @@ function openMemberCard(m){
       gender: $('mcGender')?.value || '',
       age: $('mcAge')?.value ? Number($('mcAge').value) : '',
       outfit: $('mcOutfit')?.value || '',
+      looks: $('mcLooks')?.value || '',
       role: $('mcRole')?.value || '',
       acts: ($('mcActs')?.value || '').split('\n').map(s => s.trim()).filter(Boolean),
       routine: { morning: $('mcRmorning')?.value || '', day: $('mcRday')?.value || '', evening: $('mcRevening')?.value || '', night: $('mcRnight')?.value || '' },
@@ -2389,24 +2402,28 @@ $('attachBtn').onclick = (e) => {
   $('emojiPanel').classList.remove('on');
   m.style.display = m.style.display === 'block' ? 'none' : 'block';
 };
+// 附件菜单：改成"现场建 input"，比点隐藏的 input 稳（隐藏 input 在某些浏览器/扩展下点不动）
 $('attachMenu').onclick = (e) => {
   const a = e.target.dataset.a;
   if (!a) return;
   e.stopPropagation();                 // 关键：否则会被 document 的“点空白处关闭”立刻关掉
   $('attachMenu').style.display = 'none';
-  if (a === 'emoji') $('emojiPanel').classList.toggle('on');
-  else if (a === 'image') $('pickImage').click();
-  else if (a === 'video') $('pickVideo').click();
-  else $('pickFile').click();
-};
-for (const [id, kind] of [['pickImage', 'image'], ['pickVideo', 'video'], ['pickFile', 'file']]) {
-  $(id).onchange = async (e) => {
-    const f = e.target.files?.[0];
-    e.target.value = '';
+  if (a === 'emoji') { $('emojiPanel').classList.toggle('on'); return; }
+  const picker = document.createElement('input');
+  picker.type = 'file';
+  picker.accept = a === 'image' ? 'image/*' : a === 'video' ? 'video/*' : '';
+  picker.onchange = async () => {
+    const f = picker.files && picker.files[0];
     if (!f) return;
-    await prepareAttach(f, kind);
+    try {
+      await prepareAttach(f, a);
+    } catch (err) {
+      alert('附件处理失败：' + (err && err.message ? err.message : err));
+      $('attachBtn').disabled = false; $('attachBtn').textContent = '＋';
+    }
   };
-}
+  picker.click();
+};
 let pendingAttach = null;   // 已上传、待随下一条消息一起发送的附件
 function renderPending(){
   const w = $('pendingWrap');
