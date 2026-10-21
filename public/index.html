@@ -361,7 +361,7 @@
   .home-wrap .dot-ok { width:7px; height:7px; border-radius:50%; background:var(--ok); display:inline-block; }
 /* 议题操作栏 + 并排对比（P2） */
   #main { position:relative; }
-  #topicBar { display:none; gap:10px; align-items:center; padding:8px 16px; background:var(--surface-2); border-bottom:1px solid var(--line); font-size:12px; color:var(--ink-3); }
+  #topicBar { display:none; gap:10px; align-items:center; justify-content:center; width:calc(100% - 48px); max-width:760px; margin:0 auto; padding:8px 12px 4px; background:transparent; font-size:12px; color:var(--ink-3); }
   #topicBar button { font-size:12px; padding:5px 12px; border-radius:var(--r-sm); border:1px solid var(--line); background:var(--surface); color:var(--ink-2); cursor:pointer; }
   #topicBar button:hover { background:var(--paper); border-color:var(--line-strong); }
   #topicBar .tb-sel b { color:var(--ink); }
@@ -555,7 +555,6 @@
   </div>
   <div id="main">
     <div id="homeView" style="display:none"></div>
-    <div id="topicBar" style="display:none"></div>
     <div id="head">
       <div class="title" id="title">—</div>
       <div class="peers" id="peers"></div>
@@ -584,6 +583,7 @@
     <div id="msgs"></div>
     <div id="selbar"><span>已选 <b id="selcount">0</b> 条</span><button id="doFwd">转发…</button><button id="cancelSel">取消</button></div>
     <div id="pendingWrap"></div>
+    <div id="topicBar" style="display:none"></div>
     <div id="inputbar">
       <div id="attachMenu" data-popover>
         <div data-a="emoji">😊 表情</div>
