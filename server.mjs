@@ -34,6 +34,9 @@ const ROUTES = {
   'qwen-token-plan-cn': { kind: 'openai', base: 'https://maas.qianwenaiapi.com/compatible-mode/v1', ref: 'QWEN_TOKEN_PLAN_CN_API_KEY' },
   'qwen3-8b': { kind: 'openai', base: 'http://127.0.0.1:1234/v1', ref: null },
   'kimi-coding': { kind: 'anthropic', base: 'https://api.kimi.com/coding' },
+  // 智谱 Z.ai（国内站 open.bigmodel.cn）。GLM 是推理模型：思考会吃 token，
+  // 所以**不要**给它设小的 max_tokens（实测 300 时 glm-4.6/4.7 回复为空）。
+  'zai-coding-cn': { kind: 'openai', base: 'https://open.bigmodel.cn/api/coding/paas/v4', ref: 'ZAI_CODING_CN_API_KEY' },
 };
 const LOCAL_PROVIDER = 'qwen3-8b';
 
@@ -44,6 +47,7 @@ const CATALOG = {
   'moonshotai-cn': ['kimi-k2.7-code', 'kimi-k2.7-code-highspeed'],
   'qwen-token-plan-cn': ['qwen3.8-flash', 'qwen3.8-max'],
   'qwen3-8b': ['qwen3-8b'],
+  'zai-coding-cn': ['glm-5.3', 'glm-5.3-flash', 'glm-4.6'],
 };
 
 // ---------- 成员 ----------

@@ -57,7 +57,7 @@ sh.Run """node.exe"" ""<repo>\supervise.mjs""", 0, False
 
 界面：左侧「成员」标题右边 **＋ → 添加模型** → 选线路 → 选模型 → 起名。
 
-四种线路，对应关系如下（**Key 不在这个项目里，在 DSH 的凭据文件里**）：
+五种线路，对应关系如下（**Key 不在这个项目里，在 DSH 的凭据文件里**）：
 
 | 线路 | 需要的凭据（`~/.dsh/.credentials.yaml` 的 `refs:` 段） | 模型 |
 |---|---|---|
@@ -66,6 +66,14 @@ sh.Run """node.exe"" ""<repo>\supervise.mjs""", 0, False
 | `moonshotai-cn` | `MOONSHOTAI_CN_API_KEY` | `kimi-k2.7-code`（**temperature 必须为 1**，代码里已写死） |
 | `kimi-coding` | DSH 的 Kimi 订阅登录（`llm-pi-ai/kimi-coding:` 段） | `kimi-for-coding` / `k3` |
 | `qwen3-8b` | **不要 Key**，走 `127.0.0.1:1234` | `qwen3-8b` |
+| `zai-coding-cn` | `ZAI_CODING_CN_API_KEY` | `glm-5.3` / `glm-5.3-flash` / `glm-4.6` |
+
+> **`zai-coding-cn` 是智谱**（Z.ai 的国内站 `open.bigmodel.cn`；国际站是 `zai`）。
+> 注意 GLM 是**推理模型**：思考先吃 token 再出正文，所以**别给它设小的 `max_tokens`**
+> —— 实测 `max_tokens=300` 时 `glm-4.6` / `glm-4.7` **HTTP 200 但正文为空**。
+> 圆桌发请求时不带 `max_tokens`（用接口默认），这条路是安全的。
+> 速度实测（同一句话）：`glm-5.3` 2.7s、`glm-5.3-flash` 4.2s、`glm-4.6` 20.6s（推理 token 556）。
+
 
 凭据段长这样：
 
