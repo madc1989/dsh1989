@@ -1568,7 +1568,7 @@ const server = http.createServer((req, res) => {
         }
         if (emoji !== undefined) mb.emoji = String(emoji).trim().slice(0, 4);
         if (persona !== undefined) {
-          const p = String(persona).trim().slice(0, 300);
+          const p = String(persona).trim().slice(0, 8000);
           if (p) mb.persona = p; else delete mb.persona;
         }
         if (avatar !== undefined) {
